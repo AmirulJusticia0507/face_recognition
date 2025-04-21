@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Face Compare</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    .preview-container {
+      border: 2px dashed #ccc;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      height: 300px;
+      overflow: hidden;
+      background-color: #f8f9fa;
+    }
+    .preview-img {
+      max-height: 100%;
+      max-width: 100%;
+      object-fit: contain;
+    }
+    .btn-fancy {
+      background: linear-gradient(45deg, #0d6efd, #6610f2);
+      border: none;
+      color: white;
+      font-weight: bold;
+      padding: 10px 30px;
+      border-radius: 30px;
+      transition: 0.3s ease;
+    }
+    .btn-fancy:hover {
+      transform: scale(1.05);
+      background: linear-gradient(45deg, #6610f2, #0d6efd);
+    }
+  </style>
+</head>
+<body class="bg-light">
+  {% extends "faceapp/base.html" %}
+
+  {% block title %}Face Comparison{% endblock %}
+  
+  {% block content %}
+    <h2 class="text-center mb-4">🧠 Face Comparison Tool</h2>
+    <form id="compareForm" enctype="multipart/form-data">
+      <div class="row mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Foto A</label>
+          <input type="file" class="form-control" name="foto_a" id="foto_a" accept="image/*" required>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Foto B</label>
+          <input type="file" class="form-control" name="foto_b" id="foto_b" accept="image/*" required>
+        </div>
+      </div>
+
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <label class="form-label">Model
+            <button type="button" class="btn btn-sm btn-secondary rounded-circle" 
+                data-bs-toggle="tooltip" data-bs-placement="right" 
+                title="Pilih model AI untuk analisis wajah. Setiap model punya tingkat akurasi & performa yang berbeda.">
+                ?
+            </button>
+          </label>
+          <select class="form-select" name="model" id="modelSelect">
+            <option value="ArcFace">ArcFace</option>
+            <option value="VGG-Face">VGG-Face</option>
+            <option value="Facenet">Facenet</option>
+            <option value="Facenet512">Facenet512</option>
+            <option value="SFace">SFace</option>
+          </select>
+          <small id="modelDescription" class="form-text text-muted mt-2">
+            Model ArcFace memiliki akurasi tinggi dan sangat baik untuk verifikasi wajah modern.
+          </small>
+        </div>
+      </div>
+
+      <div class="text-center mb-4">
+        <button type="submit" class="btn btn-fancy">🔥 Compare Faces</button>
+      </div>
+    </form>
+
+    <div class="row mb-5">
+      <div class="col-md-6">
+        <div class="preview-container" id="preview_a">
+          <p class="text-muted">Preview Foto A</p>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="preview-container" id="preview_b">
+          <p class="text-muted">Preview Foto B</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="analysisResult" class="alert alert-info d-none"></div>
+
+    <!-- Chart Container -->
+    <div class="mt-4">
+      <canvas id="similarityChart" width="400" height="400"></canvas>
+    </div>
+
+  </div>
+
+  <script>
+    // Deskripsi model AI
+    const descriptions = {
+      'ArcFace': 'Model ArcFace memiliki akurasi tinggi dan sangat baik untuk verifikasi wajah modern.',
+      'VGG-Face': 'Model VGG-Face adalah model klasik yang dilatih dari banyak data wajah, cocok untuk general use.',
+      'Facenet': 'Model Facenet mengubah wajah menjadi embedding numerik, cocok untuk sistem skala besar.',
+      'Facenet512': 'Facenet512 adalah versi lebih besar dari Facenet, memberikan hasil lebih akurat tapi lebih berat.',
+      'SFace': 'SFace dirancang untuk efisiensi dan performa real-time dengan akurasi yang tetap bagus.'
+    };
+  
+    // Elemen penting
+    const modelSelect = document.getElementById('modelSelect');
+    const modelDescription = document.getElementById('modelDescription');
+    const previewA = document.getElementById('preview_a');
+    const previewB = document.getElementById('preview_b');
+    const resultBox = document.getElementById('analysisResult');
+  
+    // Saat halaman pertama kali dimuat
+    document.addEventListener('DOMContentLoaded', function () {
+      // Set deskripsi awal sesuai model terpilih
+      const selectedModel = modelSelect.value;
+      modelDescription.textContent = descriptions[selectedModel];
+  
+      // Aktifkan semua tooltip Bootstrap
+      const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+      tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+      });
+    });
+  
+    // Ganti deskripsi saat user memilih model
+    modelSelect.addEventListener('change', function () {
+      const selectedModel = modelSelect.value;
+      modelDescription.textContent = descriptions[selectedModel];
+    });
+  
+    // Preview gambar saat user pilih file
+    document.getElementById('foto_a').addEventListener('change', function (e) {
+      previewImage(e.target.files[0], previewA);
+    });
+  
+    document.getElementById('foto_b').addEventListener('change', function (e) {
+      previewImage(e.target.files[0], previewB);
+    });
+  
+    function previewImage(file, container) {
+      container.innerHTML = '';
+      const img = document.createElement('img');
+      img.classList.add('preview-img');
+      img.src = URL.createObjectURL(file);
+      container.appendChild(img);
+    }
+  
+    // Proses submit form perbandingan wajah
+    document.getElementById('compareForm').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const formData = new FormData(this);
+  
+      try {
+        const response = await fetch('/api/compare/', {
+          method: 'POST',
+          body: formData
+        });
+  
+        const data = await response.json();
+  
+        if (response.ok) {
+          const alertType = data.match ? 'success' : 'warning';
+          const resultHTML = `
+            <h5>${data.match ? '✅ Faces Match!' : '❌ Faces Do Not Match'}</h5>
+            <p><strong>Similarity:</strong> ${data.similarity_percent}%</p>
+            <p><strong>Model Used:</strong> ${data.model_used}</p>
+          `;
+          resultBox.className = `alert alert-${alertType}`;
+          resultBox.innerHTML = resultHTML;
+          resultBox.classList.remove('d-none');
+        
+          // Delay sedikit biar canvas ready
+          setTimeout(() => {
+            const ctx = document.getElementById('similarityChart').getContext('2d');
+        
+            if (window.similarityChart instanceof Chart) {
+              window.similarityChart.destroy();
+            }
+        
+            const chartData = {
+              labels: ['Pose', 'Lighting', 'Similarity', 'Occlusion', 'Sharpness'],
+              datasets: [{
+                label: 'Face Analysis Score',
+                data: [
+                  data.pose_score ?? 80,
+                  data.lighting_score ?? 75,
+                  data.similarity_percent ?? 90,
+                  data.occlusion_score ?? 60,
+                  data.sharpness_score ?? 85
+                ],
+                backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                pointBackgroundColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 2
+              }]
+            };
+        
+            window.similarityChart = new Chart(ctx, {
+              type: 'radar',
+              data: chartData,
+              options: {
+                responsive: true,
+                scales: {
+                  r: {
+                    angleLines: { display: true },
+                    suggestedMin: 0,
+                    suggestedMax: 100
+                  }
+                },
+                plugins: {
+                  title: {
+                    display: true,
+                    text: 'Detail Analisa Wajah (Skor)'
+                  }
+                }
+              }
+            });
+          }, 100); // delay 100ms
+        }
+        
+        else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.error || 'Gagal membandingkan wajah.'
+          });
+        }
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Request Failed',
+          text: err.message
+        });
+      }
+    });
+  </script>
+  {% endblock %}
+</body>
+</html>

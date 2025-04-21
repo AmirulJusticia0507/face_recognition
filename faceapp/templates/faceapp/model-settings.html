@@ -1,0 +1,16 @@
+{% extends "faceapp/base.html" %}
+{% block title %}Model Settings{% endblock %}
+
+{% block content %}
+  <h2 class="text-center mb-4">🧬 Penjelasan Model AI</h2>
+  <ul class="list-group">
+    <li class="list-group-item"><strong>VGG-Face</strong>: Model CNN yang dilatih pada data wajah selebriti.</li>
+    <li class="list-group-item"><strong>Facenet</strong>: Embedding berbasis triplet loss untuk wajah.</li>
+    <li class="list-group-item"><strong>OpenFace</strong>: Model ringan dan open source.</li>
+    <li class="list-group-item"><strong>ArcFace</strong>: State-of-the-art model dengan margin penalty.</li>
+  </ul>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>
+{% endblock %}
