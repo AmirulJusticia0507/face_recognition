@@ -1,0 +1,141 @@
+{% extends 'faceapp/base.html' %}
+{% block title %}Pose Estimation{% endblock %}
+{% block content %}
+<div class="container text-center mt-5">
+  <h2 class="mb-4">Pose Estimation</h2>
+
+  <!-- Wrapper for Pose Videos -->
+  <div class="row justify-content-center">
+    <div class="col-6 mx-3">
+      <h4>Front Camera (Selfie)</h4>
+      <div class="position-relative">
+        <video id="frontVideo" width="720" height="560" autoplay muted class="border rounded mb-3"></video>
+        <canvas id="frontOverlay" width="720" height="560" class="position-absolute top-0 start-0"></canvas>
+      </div>
+    </div>
+
+    <div class="col-6 mx-3">
+      <h4>Back Camera</h4>
+      <div class="position-relative">
+        <video id="backVideo" width="720" height="560" autoplay muted class="border rounded mb-3"></video>
+        <canvas id="backOverlay" width="720" height="560" class="position-absolute top-0 start-0"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pose Status -->
+  <p id="poseStatus" class="mt-3 text-info fw-bold"></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+<script>
+  const frontVideo = document.getElementById('frontVideo');
+  const backVideo = document.getElementById('backVideo');
+  const frontCanvas = document.getElementById('frontOverlay');
+  const backCanvas = document.getElementById('backOverlay');
+  const displaySize = { width: 720, height: 560 };
+
+  async function setupCamera(cameraType = 'front') {
+    // Get available devices
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(device => device.kind === 'videoinput');
+
+    // Select camera by type (front or back)
+    let selectedDevice;
+    if (cameraType === 'front') {
+      selectedDevice = videoDevices.find(device => device.facingMode === 'user') || videoDevices[0]; // Selfie camera (front)
+    } else {
+      selectedDevice = videoDevices.find(device => device.facingMode === 'environment') || videoDevices[0]; // Back camera
+    }
+
+    // Get video stream from selected device
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: selectedDevice.deviceId }
+    });
+
+    if (cameraType === 'front') {
+      frontVideo.srcObject = stream;
+    } else {
+      backVideo.srcObject = stream;
+    }
+  }
+
+  async function loadModels() {
+    await faceapi.nets.tinyFaceDetector.loadFromUri('/static/models/');
+    await faceapi.nets.faceLandmark68Net.loadFromUri('/static/models/');
+  }
+
+  function estimatePose(landmarks) {
+    const nose = landmarks.getNose()[0];
+    const leftEye = landmarks.getLeftEye()[0];
+    const rightEye = landmarks.getRightEye()[0];
+    const eyeDiff = Math.abs(leftEye.y - rightEye.y);
+
+    if (eyeDiff < 10) return "Frontal";
+    else if (leftEye.y > rightEye.y) return "Tilted Right";
+    else return "Tilted Left";
+  }
+
+  // Fungsi untuk menggambar wajah dan landmark di canvas
+  function drawPose(canvas, landmarks) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);  // Clear canvas
+
+    // Gambar outline wajah dan landmark
+    const faceOutline = landmarks.getFaceOutline();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0, 255, 0, 1)';
+    ctx.beginPath();
+    faceOutline.forEach((point, index) => {
+      if (index === 0) {
+        ctx.moveTo(point.x, point.y);
+      } else {
+        ctx.lineTo(point.x, point.y);
+      }
+    });
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+    landmarks.getLeftEye().forEach(point => {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    landmarks.getRightEye().forEach(point => {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    landmarks.getNose().forEach(point => {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  async function detectPoseLoop() {
+    // Detect faces from front video
+    const frontDetections = await faceapi.detectAllFaces(frontVideo, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks();
+    const frontResized = faceapi.resizeResults(frontDetections, displaySize);
+    if (frontResized.length > 0) {
+      drawPose(frontCanvas, frontResized[0].landmarks);
+    }
+
+    // Detect faces from back video
+    const backDetections = await faceapi.detectAllFaces(backVideo, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks();
+    const backResized = faceapi.resizeResults(backDetections, displaySize);
+    if (backResized.length > 0) {
+      drawPose(backCanvas, backResized[0].landmarks);
+    }
+  }
+
+  Promise.all([loadModels(), setupCamera('front'), setupCamera('back')]).then(() => {
+    frontVideo.onloadeddata = () => {
+      setInterval(detectPoseLoop, 300);
+    };
+  });
+</script>
+{% endblock %}

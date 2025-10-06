@@ -8,38 +8,68 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
 
-  <!-- Navbar -->
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
-    <div class="container">
-      <a class="navbar-brand fw-bold" href="/">🧠 FaceAI</a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
-        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-      <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Face Comparison</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/history/' %}active{% endif %}" href="/history/">History</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/model-settings/' %}active{% endif %}" href="/model-settings/">Model Settings</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/about/' %}active{% endif %}" href="/about/">About</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link {% if request.path == '/live-camera/' %}active{% endif %}" href="/live-camera/">Live Camera</a>
-          </li>
-        </ul>
-      </div>
-    </div>
-  </nav>
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <div class="container">
+      <a class="navbar-brand fw-bold" href="/">🧠 FaceAI</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+  
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+
+            <!-- Face Comparison -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Face Comparison</a>
+            </li>
+          
+            <!-- History -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/history/' %}active{% endif %}" href="/history/">History</a>
+            </li>
+          
+            <!-- Model Settings -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/model-settings/' %}active{% endif %}" href="/model-settings/">Model Settings</a>
+            </li>
+          
+            <!-- About -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/about/' %}active{% endif %}" href="/about/">About</a>
+            </li>
+          
+            <!-- Live Camera -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/live-camera/' %}active{% endif %}" href="/live-camera/">Live Camera</a>
+            </li>
+          
+            <!-- Pose Estimation -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/pose-estimation/' %}active{% endif %}" href="/pose-estimation/">Pose Estimation</a>
+            </li>
+          
+            <!-- ETLE Camera -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/etle-camera/' %}active{% endif %}" href="/etle-camera/">ETLE Camera</a>
+            </li>
+          
+            <!-- Violation Logs -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/violation-logs/' %}active{% endif %}" href="/violation-logs/">Violation Logs</a>
+            </li>
+          
+          </ul>
+          
+      </div>
+    </div>
+  </nav>
+  
 
   <!-- Main Content -->
   <div class="container mt-5">

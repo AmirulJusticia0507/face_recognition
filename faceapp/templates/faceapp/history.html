@@ -1,39 +1,96 @@
 {% extends "faceapp/base.html" %}
 {% block title %}History{% endblock %}
-
+<style>
+    .img-thumbnail {
+          position: relative;
+        }
+        
+        .img-thumbnail::after {
+          content: "🔍";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          font-size: 24px;
+          color: white;
+          background-color: rgba(0, 0, 0, 0.5);
+          padding: 5px 10px;
+          border-radius: 5px;
+          opacity: 0;
+          transition: opacity 0.3s ease;
+        }
+        
+        a:hover .img-thumbnail::after {
+          opacity: 1;
+        }
+        
+    </style>
+    
 {% block content %}
-
+<div class="container mt-4">
   <h2 class="mb-4">📜 Riwayat Perbandingan Wajah</h2>
-  <table id="historyTable" class="table table-striped table-bordered">
+  <table id="historyTable" class="table table-striped table-bordered" style="width:100%">
     <thead>
       <tr>
-        <th>Foto A</th><th>Foto B</th><th>Model</th><th>Persentase</th><th>Verified</th><th>Tanggal</th>
+        <th>Foto A</th>
+        <th>Foto B</th>
+        <th>Model</th>
+        <th>Persentase</th>
+        <th>Verified</th>
+        <th>Tanggal</th>
       </tr>
     </thead>
     <tbody>
       {% for log in logs %}
-        <tr>
-          <td><img src="{{ log.foto_a.url }}" width="100" class="img-thumbnail"></td>
-          <td><img src="{{ log.foto_b.url }}" width="100" class="img-thumbnail"></td>
-          <td>{{ log.model_used }}</td>
-          <td>{{ log.similarity_percent }}%</td>
-          <td>{{ log.verified }}</td>
-          <td>{{ log.created_at }}</td>
-        </tr>
+      <tr>
+        <td>
+          <a href="{{ log.foto_a.url }}" data-lightbox="log-{{ forloop.counter }}" data-title="Foto A">
+            <img src="{{ log.foto_a.url }}" width="100" class="img-thumbnail">
+          </a>
+        </td>
+        <td>
+          <a href="{{ log.foto_b.url }}" data-lightbox="log-{{ forloop.counter }}" data-title="Foto B">
+            <img src="{{ log.foto_b.url }}" width="100" class="img-thumbnail">
+          </a>
+        </td>
+        <td>{{ log.model_used }}</td>
+        <td>{{ log.similarity_percent }}%</td>
+        <td>{{ log.verified }}</td>
+        <td>{{ log.created_at }}</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
+</div>
 {% endblock %}
-  <!-- CDN JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
-  <script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script>
-    $(document).ready(function () {
-      $('#historyTable').DataTable();
+
+{% block extra_js %}
+<!-- DataTables CSS & JS for Bootstrap 5 -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.4/js/dataTables.bootstrap5.min.js"></script>
+<!-- LightGallery CSS -->
+<link href="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/css/lightgallery-bundle.min.css" rel="stylesheet">
+<!-- LightGallery JS -->
+<script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/lightgallery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lightgallery@2.7.1/plugins/thumbnail/lg-thumbnail.min.js"></script>
+
+<script>
+  $(document).ready(function () {
+    $('#historyTable').DataTable({
+      "language": {
+        "search": "🔍 Cari:"
+      }
     });
-  </script>
-</body>
-</html>
+    {% for log in logs %}
+    lightGallery(document.getElementById('gallery-{{ forloop.counter }}'), {
+    thumbnail: true,
+    animateThumb: true,
+    showThumbByDefault: true
+    });
+    {% endfor %}
+  });
+</script>
+{% endblock %}

@@ -7,6 +7,10 @@
   <div class="mt-3">
     <button id="snapBtn" class="btn btn-primary">📸 Ambil Snapshot</button>
   </div>
+  <div class="mt-4">
+    <canvas id="expressionChart" width="400" height="300"></canvas>
+  </div>
+    
 </div>
 
 <div id="expressionDisplay" class="mt-2 text-muted"></div>
@@ -33,6 +37,7 @@
 
 <!-- Load face-api.js -->
 <script src="https://cdn.jsdelivr.net/npm/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   const video = document.getElementById('video');
   const canvas = document.getElementById('overlay');
@@ -41,6 +46,7 @@
   const snapshotModal = document.getElementById('snapshotModal');
   const snapshotImage = document.getElementById('snapshotImage');
   const closeModalBtn = document.getElementById('closeModalBtn');
+  let lastDetections = null;
 
   async function setupCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -63,18 +69,17 @@
       .withFaceLandmarks()
       .withFaceExpressions();
 
+    lastDetections = detections;
+
     const resized = faceapi.resizeResults(detections, displaySize);
     canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
-    faceapi.draw.drawDetections(canvas, resized);  // Kotak deteksi wajah
-    faceapi.draw.drawFaceLandmarks(canvas, resized);  // Landmark wajah
-    faceapi.draw.drawFaceExpressions(canvas, resized);  // Ekspresi wajah
+    faceapi.draw.drawDetections(canvas, resized);
+    faceapi.draw.drawFaceLandmarks(canvas, resized);
+    faceapi.draw.drawFaceExpressions(canvas, resized);
 
-    // Log ekspresi dominan ke console
     if (detections.length > 0) {
       const exp = getDominantExpression(detections[0].expressions);
       console.log("Ekspresi:", exp);
-
-      // Menampilkan ekspresi di halaman
       document.getElementById('expressionDisplay').textContent = `Ekspresi Dominan: ${exp}`;
     }
   }
@@ -84,18 +89,50 @@
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageDataURL = canvas.toDataURL('image/jpeg');
 
-    // Menampilkan snapshot di dalam modal
     snapshotImage.src = imageDataURL;
-    $(snapshotModal).modal('show');  // Menampilkan modal dengan snapshot
+    $('#snapshotModal').modal('show');
 
-    // Kirim ke backend (simulasi POST)
+    let detected_expression = "unknown";
+    if (lastDetections && lastDetections.length > 0) {
+      const expressions = lastDetections[0].expressions;
+      detected_expression = getDominantExpression(expressions);
+
+      // Render Radar Chart
+      const labels = Object.keys(expressions);
+      const values = Object.values(expressions);
+      const ctx = document.getElementById('expressionChart').getContext('2d');
+      if (window.radarChart) window.radarChart.destroy(); // clear chart lama
+      window.radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Ekspresi Wajah',
+            data: values,
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            pointBackgroundColor: 'rgba(255, 99, 132, 1)'
+          }]
+        },
+        options: {
+          scale: {
+            ticks: { beginAtZero: true, max: 1 }
+          }
+        }
+      });
+    }
+
+    // Simpan ke backend
     const response = await fetch('/live-camera/save-snapshot/', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
       body: JSON.stringify({
         image_base64: imageDataURL,
         timestamp: new Date().toISOString(),
-        detected_expression: "happy" // contoh ekspresi, bisa disesuaikan
+        detected_expression: detected_expression
       })
     });
 
@@ -104,16 +141,15 @@
     }
   });
 
-  // Menutup modal ketika tombol close ditekan
   closeModalBtn.addEventListener('click', () => {
-    $(snapshotModal).modal('hide');
+    $('#snapshotModal').modal('hide');
   });
 
-  // Init
   Promise.all([loadModels(), setupCamera()]).then(() => {
     video.onloadeddata = () => {
-      setInterval(detectLoop, 300);  // Deteksi wajah setiap 300ms
+      setInterval(detectLoop, 300);
     };
   });
 </script>
+
 {% endblock %}

@@ -1,0 +1,16 @@
+Django>=4.2
+deepface>=0.0.79
+opencv-python
+Pillow
+numpy
+scipy
+tensorflow
+torch
+mtcnn
+gdown
+requests
+jinja2
+python-dotenv
+dlib            
+imutils         
+django-widget-tweaks  

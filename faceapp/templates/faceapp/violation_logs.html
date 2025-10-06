@@ -1,0 +1,32 @@
+{% extends 'faceapp/base.html' %}
+{% block title %}Violation Logs{% endblock %}
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-4">Violation Logs</h2>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Plate Number</th>
+        <th>Violation Type</th>
+        <th>Violation Time</th>
+        <th>Status</th>
+        <th>Fine</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+        <tr>
+          <td>{{ log.id }}</td>
+          <td>{{ log.plate_number }}</td>
+          <td>{{ log.violation_type }}</td>
+          <td>{{ log.violation_time }}</td>
+          <td>{{ log.status }}</td>
+          <td>{{ log.fine_amount }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
