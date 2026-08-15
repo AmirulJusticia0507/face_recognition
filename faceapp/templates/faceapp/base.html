@@ -28,6 +28,16 @@
             <li class="nav-item">
               <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">Face Comparison</a>
             </li>
+
+            <!-- Identifikasi -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/identify/' %}active{% endif %}" href="/identify/">Identifikasi</a>
+            </li>
+
+            <!-- Data Orang -->
+            <li class="nav-item">
+              <a class="nav-link {% if request.path == '/people/' %}active{% endif %}" href="/people/">Data Orang</a>
+            </li>
           
             <!-- History -->
             <li class="nav-item">

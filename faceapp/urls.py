@@ -1,5 +1,7 @@
 from django.urls import path
-from .views import FaceCompareView, face_form_view,HistoryView,ModelSettingsView,AboutView,LiveCameraView, save_snapshot, pose_estimation, etle_camera, violation_logs
+from .views import (FaceCompareView, face_form_view, HistoryView, ModelSettingsView, AboutView,
+                    LiveCameraView, save_snapshot, pose_estimation, etle_camera, violation_logs,
+                    PersonListView, register_person, identify, delete_person)
 
 urlpatterns = [
     path('', face_form_view, name='face-form'),
@@ -12,4 +14,8 @@ urlpatterns = [
     path('pose-estimation/', pose_estimation, name='pose_estimation'),
     path('etle-camera/', etle_camera, name='etle_camera'),
     path('violation-logs/', violation_logs, name='violation_logs'),
+    path('people/', PersonListView.as_view(), name='people'),
+    path('people/register/', register_person, name='register_person'),
+    path('people/<int:pk>/delete/', delete_person, name='delete_person'),
+    path('identify/', identify, name='identify'),
 ]

@@ -13,5 +13,8 @@ venv/
 db.sqlite3
 staticfiles/
 
+# Face gallery (runtime data)
+media/face_db/
+
 # Logs
 *.log

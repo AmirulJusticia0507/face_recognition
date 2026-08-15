@@ -1,0 +1,55 @@
+{% extends 'faceapp/base.html' %}
+{% load static %}
+{% block title %}Data Orang - FaceAI{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Data Orang</h2>
+    <a href="{% url 'register_person' %}" class="btn btn-primary">+ Daftarkan Wajah</a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+{% endif %}
+
+{% if people %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Nama</th>
+                <th>ID</th>
+                <th>Jumlah Foto</th>
+                <th>Terdaftar</th>
+                <th class="text-end">Aksi</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for person in people %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ person.name }}</td>
+                <td>{{ person.identifier }}</td>
+                <td>
+                    <span class="badge bg-secondary">{{ person.face_images.count }} foto</span>
+                </td>
+                <td>{{ person.created_at|date:"d M Y H:i" }}</td>
+                <td class="text-end">
+                    <form method="post" action="{% url 'delete_person' person.pk %}" class="d-inline"
+                          onsubmit="return confirm('Hapus {{ person.name }} dan semua foto wajahnya?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Hapus</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">Belum ada data orang. <a href="{% url 'register_person' %}">Daftarkan sekarang</a>.</div>
+{% endif %}
+{% endblock %}

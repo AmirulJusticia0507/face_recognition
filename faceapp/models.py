@@ -1,4 +1,44 @@
+import os
+import uuid
+
 from django.db import models
+
+
+def face_image_path(instance, filename):
+    ext = os.path.splitext(filename)[1].lower() or '.jpg'
+    return f"face_db/{instance.person_id}/{uuid.uuid4().hex}{ext}"
+
+
+class Person(models.Model):
+    name = models.CharField(max_length=100)
+    identifier = models.CharField(max_length=50, unique=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.identifier})"
+
+    def delete(self, *args, **kwargs):
+        for face_image in self.face_images.all():
+            face_image.image.delete(save=False)
+        super().delete(*args, **kwargs)
+
+
+class FaceImage(models.Model):
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name='face_images')
+    image = models.ImageField(upload_to=face_image_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.person.name} - {self.image.name}"
+
+    def delete(self, *args, **kwargs):
+        self.image.delete(save=False)
+        super().delete(*args, **kwargs)
+
 
 class FaceComparisonLog(models.Model):
     foto_a = models.ImageField(upload_to='faces/')

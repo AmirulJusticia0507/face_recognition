@@ -1,0 +1,41 @@
+{% extends 'faceapp/base.html' %}
+{% block title %}Daftarkan Wajah - FaceAI{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <h2 class="mb-4">Daftarkan Wajah Baru</h2>
+
+        {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label class="form-label">Nama Lengkap</label>
+                {{ form.name }}
+                {{ form.name.errors }}
+            </div>
+            <div class="mb-3">
+                <label class="form-label">NIP / NIM / ID</label>
+                {{ form.identifier }}
+                {{ form.identifier.errors }}
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Catatan</label>
+                {{ form.notes }}
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Foto Wajah (bisa pilih banyak)</label>
+                <input type="file" name="photos" class="form-control" accept="image/*" multiple required>
+                <div class="form-text">Disarankan foto depan, cahaya cukup, wajah jelas. Min. 1 foto, idealnya 3-5 dari sudut berbeda.</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Simpan</button>
+            <a href="{% url 'people' %}" class="btn btn-secondary">Batal</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

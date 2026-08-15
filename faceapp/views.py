@@ -2,20 +2,26 @@ import os
 import uuid
 import base64
 import json
+import tempfile
+
 import cv2
 import numpy as np
 from django.utils import timezone
 from django.http import JsonResponse
 from django.core.files.base import ContentFile
 from django.conf import settings
-from django.shortcuts import render
+from django.contrib import messages
+from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser
 from django.views.generic import ListView, TemplateView
-from .models import FaceLog, FaceComparisonLog, ViolationLog
+from .models import FaceLog, FaceComparisonLog, ViolationLog, Person
+from .forms import PersonForm
 from .serializers import FaceComparisonLogSerializer
+from . import face_services
 from deepface import DeepFace
 
 # Dummy pose score function
@@ -155,3 +161,82 @@ def etle_camera(request):
 def violation_logs(request):
     logs = ViolationLog.objects.all().order_by('-violation_time')
     return render(request, 'faceapp/violation_logs.html', {'logs': logs})
+
+
+class PersonListView(ListView):
+    model = Person
+    template_name = 'faceapp/people.html'
+    context_object_name = 'people'
+    ordering = ['-created_at']
+
+
+def register_person(request):
+    if request.method == 'POST':
+        form = PersonForm(request.POST)
+        photos = request.FILES.getlist('photos')
+
+        if form.is_valid() and photos:
+            person = form.save()
+            saved = 0
+            errors = []
+            for photo in photos:
+                ok, err = face_services.save_face_image(person, photo)
+                if ok:
+                    saved += 1
+                else:
+                    errors.append(f"{photo.name}: {err}")
+
+            if saved == 0:
+                person.delete()
+                form.add_error(None, 'Tidak ada foto valid. ' + ' | '.join(errors))
+                return render(request, 'faceapp/register_person.html', {'form': form})
+
+            messages.success(request, f'Registrasi berhasil: {saved} foto wajah disimpan untuk {person.name}.')
+            if errors:
+                messages.warning(request, 'Beberapa foto dilewati: ' + ' | '.join(errors))
+            return redirect('people')
+
+        if not photos:
+            form.add_error(None, 'Minimal unggah satu foto wajah.')
+        return render(request, 'faceapp/register_person.html', {'form': form})
+
+    return render(request, 'faceapp/register_person.html', {'form': PersonForm()})
+
+
+def identify(request):
+    result = None
+    error = None
+
+    if request.method == 'POST':
+        photo = request.FILES.get('photo')
+        model_name = request.POST.get('model', 'ArcFace')
+
+        if not photo:
+            error = 'Foto wajib diunggah.'
+        else:
+            tmp = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+            tmp_path = tmp.name
+            try:
+                for chunk in photo.chunks():
+                    tmp.write(chunk)
+                tmp.close()
+
+                result = face_services.find_best_match(tmp_path, model_name=model_name)
+                if result is None:
+                    error = 'Tidak ada kecocokan wajah di database.'
+            except Exception as e:
+                error = f'Gagal memproses gambar: {e}'
+            finally:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+
+    return render(request, 'faceapp/identify.html', {'result': result, 'error': error})
+
+
+@require_POST
+def delete_person(request, pk):
+    person = Person.objects.filter(pk=pk).first()
+    if person:
+        person.delete()
+        messages.success(request, f'{person.name} berhasil dihapus.')
+    return redirect('people')
