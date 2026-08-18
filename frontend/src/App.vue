@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { Notivue, push } from 'notivue'
 import { useSidebarStore } from './stores/sidebar'
 import { useAuthStore } from './stores/auth'
+import { useDarkModeStore } from './stores/darkMode'
 import { handleGoogleCallback } from './services/sso'
 import MainLayout from './components/layout/MainLayout.vue'
 
@@ -14,6 +15,10 @@ const authStore = useAuthStore()
 onMounted(async () => {
   sidebarStore.initFromLocalStorage()
   authStore.loadUserFromStorage()
+
+  // Ensure dark mode is applied
+  const darkModeStore = useDarkModeStore()
+  darkModeStore.init()
 
   // Handle Google OAuth callback
   const code = route.query.code
