@@ -12,7 +12,7 @@ const isMobileOpen = computed(() => sidebarStore.isMobileOpen)
 
 const navigation = [
   { name: 'Dashboard', path: '/', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { name: 'Face Comparison', path: '/', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
+  { name: 'Face Comparison', path: '/face-comparison', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
   { name: 'Identifikasi', path: '/identify', icon: 'M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1' },
   { name: 'Data Orang', path: '/people', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
   { name: 'History', path: '/history', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
@@ -25,10 +25,6 @@ const navigation = [
   { name: 'About', path: '/about', icon: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
 ]
 
-const getIconPath = (iconPath) => {
-  return iconPath
-}
-
 const navigate = (path) => {
   router.push(path)
   sidebarStore.closeMobile()
@@ -36,39 +32,38 @@ const navigate = (path) => {
 </script>
 
 <template>
-  <!-- Sidebar -->
-  <aside 
+  <aside
     :class="[
-      'fixed top-0 left-0 z-50 h-screen bg-white border-r border-gray-200 transition-all duration-300 ease-in-out dark:bg-dark-900 dark:border-dark-700',
+      'fixed top-0 left-0 z-50 h-screen flex flex-col bg-white border-r border-gray-200 transition-all duration-300 ease-in-out dark:bg-dark-900 dark:border-dark-700',
       isCollapsed ? 'w-20' : 'w-64',
       isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
     ]"
   >
-    <!-- Logo Section -->
-    <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-dark-700">
-      <div class="flex items-center gap-3" v-show="!isCollapsed">
-        <div class="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.734-.988-2.386l-.548-.547z" />
-          </svg>
-        </div>
-        <span class="font-bold text-xl text-gray-900 dark:text-dark-100">FaceAI</span>
+    <!-- Logo + Toggle -->
+    <div class="flex items-center h-16 px-4 border-b border-gray-200 dark:border-dark-700 shrink-0">
+      <!-- Logo icon (always visible) -->
+      <div class="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center shrink-0">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.734-.988-2.386l-.548-.547z" />
+        </svg>
       </div>
-      <div class="flex items-center justify-center w-10 h-10" v-show="isCollapsed">
-        <div class="w-10 h-10 rounded-lg bg-primary-600 flex items-center justify-center">
-          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.734-.988-2.386l-.548-.547z" />
-          </svg>
-        </div>
-      </div>
+
+      <!-- Brand name (hidden when collapsed) -->
+      <span v-show="!isCollapsed" class="ml-3 font-bold text-xl text-gray-900 dark:text-dark-100 whitespace-nowrap">FaceAI</span>
+
+      <!-- Toggle button -->
       <button
-        v-show="!isCollapsed"
         @click="sidebarStore.toggleCollapsed"
-        class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-200"
-        aria-label="Collapse sidebar"
+        class="ml-auto p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-200 shrink-0"
+        :aria-label="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Collapse arrow (shown when expanded) -->
+        <svg v-if="!isCollapsed" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+        </svg>
+        <!-- Expand arrow (shown when collapsed) -->
+        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
         </svg>
       </button>
     </div>
@@ -76,11 +71,12 @@ const navigate = (path) => {
     <!-- Navigation -->
     <nav class="flex-1 overflow-y-auto py-4 px-2" aria-label="Main navigation">
       <ul class="space-y-1" role="list">
-        <li v-for="item in navigation" :key="item.path">
+        <li v-for="item in navigation" :key="item.path" class="relative group">
           <button
             @click="navigate(item.path)"
             :class="[
               'sidebar-link w-full',
+              !isCollapsed ? '' : 'justify-center px-0',
               route.path === item.path ? 'active' : ''
             ]"
             :aria-current="route.path === item.path ? 'page' : undefined"
@@ -90,21 +86,20 @@ const navigate = (path) => {
             </svg>
             <span v-show="!isCollapsed" class="truncate">{{ item.name }}</span>
           </button>
-        </li>
-      </ul>
 
-      <!-- Collapsed tooltip -->
-      <div v-show="isCollapsed" class="absolute left-full top-0 w-48 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none" style="transform: translateX(8px);">
-        <template v-for="item in navigation" :key="item.path">
-          <div class="bg-gray-800 text-white text-sm px-3 py-2 rounded shadow-lg mb-1 whitespace-nowrap">
+          <!-- Tooltip when collapsed -->
+          <div
+            v-show="isCollapsed"
+            class="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-1.5 bg-gray-800 text-white text-sm rounded-lg shadow-lg whitespace-nowrap opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 pointer-events-none z-50 dark:bg-dark-700"
+          >
             {{ item.name }}
           </div>
-        </template>
-      </div>
+        </li>
+      </ul>
     </nav>
 
-    <!-- Footer in Sidebar -->
-    <div class="p-4 border-t border-gray-200 dark:border-dark-700" v-show="!isCollapsed">
+    <!-- Footer -->
+    <div class="p-4 border-t border-gray-200 dark:border-dark-700 shrink-0" v-show="!isCollapsed">
       <div class="text-xs text-gray-500 dark:text-dark-400 text-center">
         <p>FaceAI v1.0.0</p>
         <p class="mt-1">Face Recognition System</p>

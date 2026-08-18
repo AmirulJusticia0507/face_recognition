@@ -132,18 +132,18 @@ body {
     @apply flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-100 hover:text-primary-600 transition-all duration-200 rounded-lg mx-2;
     @apply dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-primary-400;
   }
-  
+
   .sidebar-link.active {
     @apply bg-primary-50 text-primary-600 font-medium;
     @apply dark:bg-primary-900/20 dark:text-primary-400;
   }
-  
-  .sidebar-link i {
-    @apply w-5 h-5 text-gray-400;
+
+  .sidebar-link svg {
+    @apply w-5 h-5 text-gray-400 shrink-0;
     @apply dark:text-dark-500;
   }
-  
-  .sidebar-link.active i {
+
+  .sidebar-link.active svg {
     @apply text-primary-600;
     @apply dark:text-primary-400;
   }
