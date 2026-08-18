@@ -678,9 +678,14 @@ class PoseEstimationView(APIView):
 
 
 ETLE_CAMERAS = [
-    {'id': 'cam-001', 'name': 'Lampu Merah Utama', 'status': 'online'},
-    {'id': 'cam-002', 'name': 'Jalan Tol Gate A', 'status': 'online'},
-    {'id': 'cam-003', 'name': 'Parkiran Gedung B', 'status': 'offline'},
+    {'id': 'cam-001', 'name': 'Titik Nol Kilometer', 'lat': -7.7928, 'lng': 110.3659, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/nolkm', 'status': 'online'},
+    {'id': 'cam-002', 'name': 'Malioboro Utara', 'lat': -7.7937, 'lng': 110.3652, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/malioboro-utara', 'status': 'online'},
+    {'id': 'cam-003', 'name': 'Malioboro Tengah', 'lat': -7.7956, 'lng': 110.3650, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/malioboro-tengah', 'status': 'online'},
+    {'id': 'cam-004', 'name': 'Tugu Jogja', 'lat': -7.7895, 'lng': 110.3633, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/tugu', 'status': 'online'},
+    {'id': 'cam-005', 'name': 'Alun-Alun Kidul', 'lat': -7.8060, 'lng': 110.3638, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/alun-alun-selatan', 'status': 'online'},
+    {'id': 'cam-006', 'name': 'Simpang Prambanan', 'lat': -7.7476, 'lng': 110.4341, 'source': 'sleman', 'stream': 'https://24jam.slemankab.go.id/stream/prambanan', 'status': 'online'},
+    {'id': 'cam-007', 'name': 'Bundaran UGM', 'lat': -7.7623, 'lng': 110.3797, 'source': 'sleman', 'stream': 'https://24jam.slemankab.go.id/stream/ugm', 'status': 'online'},
+    {'id': 'cam-008', 'name': 'Pantai Parangtritis', 'lat': -8.0278, 'lng': 110.3307, 'source': 'bantul', 'stream': 'https://bantulkab.go.id/cctv/stream/parangtritis', 'status': 'online'},
 ]
 
 
@@ -695,17 +700,107 @@ class EtleCameraDetectView(APIView):
     def post(self, request):
         image = request.data.get('image')
         camera = request.data.get('camera', '')
+        stream_url = request.data.get('stream_url', '')
+        mode = request.data.get('mode', 'local')
 
-        if not image:
-            return Response({'error': 'Image wajib diisi.'}, status=400)
+        frame_path = None
+
+        if mode == 'proxy' and stream_url:
+            try:
+                cap = cv2.VideoCapture(stream_url)
+                if not cap.isOpened():
+                    return Response({'error': f'Gagal membuka stream: {stream_url}'}, status=400)
+                ret, frame = cap.read()
+                cap.release()
+                if not ret or frame is None:
+                    return Response({'error': 'Gagal membaca frame dari stream'}, status=400)
+                tmp = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+                frame_path = tmp.name
+                tmp.close()
+                cv2.imwrite(frame_path, frame)
+                image_file = frame_path
+            except Exception as e:
+                return Response({'error': f'Proxy capture error: {e}'}, status=500)
+        elif image:
+            image_data = image.split(',')[-1] if ',' in image else image
+            tmp = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+            frame_path = tmp.name
+            tmp.close()
+            with open(frame_path, 'wb') as f:
+                f.write(base64.b64decode(image_data))
+            image_file = frame_path
+        else:
+            return Response({'error': 'Image atau stream_url wajib diisi.'}, status=400)
 
         violations = []
-        now = timezone.now().isoformat()
-        violations.append({
-            'type': 'speeding',
-            'description': f'Pelanggaran kecepatan terdeteksi di {camera}',
-            'time': now,
-        })
+        try:
+            img = cv2.imread(image_file)
+            if img is not None:
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                height, width = gray.shape
+
+                bright = cv2.mean(gray)[0]
+                if bright > 200:
+                    violations.append({
+                        'type': 'glare',
+                        'description': 'Cahaya berlebihan / silau terdeteksi',
+                        'time': timezone.now().isoformat(),
+                        'camera': camera,
+                    })
+
+                edges = cv2.Canny(gray, 100, 200)
+                edge_ratio = cv2.countNonZero(edges) / (height * width)
+                if edge_ratio > 0.15:
+                    violations.append({
+                        'type': 'scene_change',
+                        'description': 'Perubahan scene signifikan terdeteksi',
+                        'time': timezone.now().isoformat(),
+                        'camera': camera,
+                    })
+
+                face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+                faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+                if len(faces) > 5:
+                    violations.append({
+                        'type': 'crowd',
+                        'description': f'Kerumunan terdeteksi ({len(faces)} wajah)',
+                        'time': timezone.now().isoformat(),
+                        'camera': camera,
+                    })
+
+                blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+                if blur_score < 50:
+                    violations.append({
+                        'type': 'blur',
+                        'description': 'Gambar buram / tidak fokus',
+                        'time': timezone.now().isoformat(),
+                        'camera': camera,
+                    })
+
+                if not violations:
+                    violations.append({
+                        'type': 'normal',
+                        'description': 'Tidak ada pelanggaran terdeteksi',
+                        'time': timezone.now().isoformat(),
+                        'camera': camera,
+                    })
+
+                ViolationLog.objects.create(
+                    violation_type=violations[0]['type'],
+                    description=violations[0]['description'],
+                    camera_id=camera,
+                )
+
+        except Exception as e:
+            violations.append({
+                'type': 'error',
+                'description': f'Error analisis: {e}',
+                'time': timezone.now().isoformat(),
+                'camera': camera,
+            })
+        finally:
+            if frame_path and os.path.exists(frame_path):
+                os.unlink(frame_path)
 
         return Response({'violations': violations})
 
