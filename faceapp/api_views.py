@@ -718,9 +718,53 @@ class JogjaCCTVListView(APIView):
                         'status': 'online' if status == '0' else 'offline',
                     })
                 return Response(cameras[:20])
-        except Exception as e:
-            pass
+except Exception as e:
+                    pass
         return Response(ETLE_CAMERAS)
+
+
+class CameraListCreateView(APIView):
+    parser_classes = [JSONParser, MultiPartParser]
+
+    def get(self, request):
+        cameras = Camera.objects.all().order_by('name')
+        serializer = CameraSerializer(cameras, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        serializer = CameraSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CameraRetrieveUpdateDestroyView(APIView):
+    parser_classes = [JSONParser, MultiPartParser]
+
+    def get_object(self, pk):
+        try:
+            return Camera.objects.get(pk=pk)
+        except Camera.DoesNotExist:
+            return Response({'error': 'Camera not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    def get(self, request, pk):
+        camera = self.get_object(pk)
+        serializer = CameraSerializer(camera)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        camera = self.get_object(pk)
+        serializer = CameraSerializer(camera, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, pk):
+        camera = self.get_object(pk)
+        camera.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class EtleCameraDetectView(APIView):

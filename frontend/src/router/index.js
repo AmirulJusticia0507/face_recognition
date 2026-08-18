@@ -68,6 +68,12 @@ const routes = [
     meta: { title: 'Violation Logs', requiresAuth: true }
   },
   {
+    path: '/camera-management',
+    name: 'CameraManagement',
+    component: () => import('../views/CameraManagement.vue'),
+    meta: { title: 'Manajemen Kamera', requiresAuth: true }
+  },
+  {
     path: '/forensic-analysis',
     name: 'ForensicAnalysis',
     component: () => import('../views/ForensicAnalysis.vue'),

@@ -144,3 +144,33 @@ class ModelSetting(models.Model):
     def get_solo(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+
+class Camera(models.Model):
+    SOURCE_CHOICES = [
+        ('jogjakota', 'Jogja Kota (cctv.jogjakota.go.id)'),
+        ('sleman', 'Sleman (24jam.slemankab.go.id)'),
+        ('bantul', 'Bantul (bantulkab.go.id)'),
+        ('ai_cctv', 'AI CCTV External'),
+    ]
+    STATUS_CHOICES = [
+        ('online', 'Online'),
+        ('offline', 'Offline'),
+        ('maintenance', 'Maintenance'),
+    ]
+
+    name = models.CharField(max_length=100)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES)
+    stream_url = models.URLField(blank=True, null=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='online')
+    description = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"{self.name} ({self.get_source_display})"

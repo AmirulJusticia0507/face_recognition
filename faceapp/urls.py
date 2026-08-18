@@ -2,7 +2,12 @@ from django.urls import path
 from .views import (FaceCompareView, face_form_view, HistoryView, ModelSettingsView, AboutView,
                      LiveCameraView, save_snapshot, pose_estimation, etle_camera, violation_logs,
                      PersonListView, register_person, identify, delete_person, ForensicAnalysisView)
-from .api_views import EtleCameraListView, JogjaCCTVListView
+from .api_views import (
+    EtleCameraListView,
+    JogjaCCTVListView,
+    CameraListCreateView,
+    CameraRetrieveUpdateDestroyView,
+)
 
 urlpatterns = [
     path('', face_form_view, name='face-form'),
@@ -16,6 +21,8 @@ urlpatterns = [
     path('etle-camera/', etle_camera, name='etle_camera'),
     path('etle-camera/cameras/', EtleCameraListView.as_view(), name='etle-camera-cameras'),
     path('etle-camera/cameras/jogja/', JogjaCCTVListView.as_view(), name='jogja-cctv-list'),
+    path('cameras/', CameraListCreateView.as_view(), name='camera-list-create'),
+    path('cameras/<int:pk>/', CameraRetrieveUpdateDestroyView.as_view(), name='camera-detail'),
     path('violation-logs/', violation_logs, name='violation_logs'),
     path('people/', PersonListView.as_view(), name='people'),
     path('people/register/', register_person, name='register_person'),

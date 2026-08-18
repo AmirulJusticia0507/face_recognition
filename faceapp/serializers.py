@@ -96,3 +96,9 @@ class ModelSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModelSetting
         fields = ['default_model', 'similarity_threshold', 'detection_backend', 'enforce_detection', 'align']
+
+
+class CameraSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Camera
+        fields = ['id', 'name', 'source', 'stream_url', 'latitude', 'longitude', 'status', 'description', 'created_at', 'updated_at']
