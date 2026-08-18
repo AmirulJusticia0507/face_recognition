@@ -3,6 +3,7 @@ import { createPinia } from 'pinia'
 import { createNotivue } from 'notivue'
 import App from './App.vue'
 import router from './router'
+import { useDarkModeStore } from './stores/darkMode'
 import './assets/main.css'
 
 const notivue = createNotivue({
@@ -17,7 +18,12 @@ const notivue = createNotivue({
 })
 
 const app = createApp(App)
-app.use(createPinia())
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
 app.use(notivue)
+
+const darkModeStore = useDarkModeStore()
+darkModeStore.init()
+
 app.mount('#app')

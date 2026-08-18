@@ -16,15 +16,15 @@ const socialLinks = [
 </script>
 
 <template>
-  <footer class="bg-white border-t border-gray-200">
+  <footer class="bg-white border-t border-gray-200 dark:bg-dark-900 dark:border-dark-700">
     <div class="max-w-7xl mx-auto px-4 lg:px-6 py-4">
       <div class="flex flex-col md:flex-row items-center justify-between gap-4">
         <!-- Copyright -->
         <div class="text-center md:text-left">
-          <p class="text-sm text-gray-500">
+          <p class="text-sm text-gray-500 dark:text-dark-400">
             &copy; {{ currentYear }} FaceAI. All rights reserved.
           </p>
-          <p class="text-xs text-gray-400 mt-1">
+          <p class="text-xs text-gray-400 dark:text-dark-500 mt-1">
             Face Recognition System
           </p>
         </div>
@@ -35,7 +35,7 @@ const socialLinks = [
             v-for="link in footerLinks"
             :key="link.name"
             :href="link.href"
-            class="text-sm text-gray-500 hover:text-primary-600 transition-colors"
+            class="text-sm text-gray-500 hover:text-primary-600 transition-colors dark:text-dark-400 dark:hover:text-primary-400"
           >
             {{ link.name }}
           </a>
@@ -47,7 +47,7 @@ const socialLinks = [
             v-for="social in socialLinks"
             :key="social.name"
             :href="social.href"
-            class="text-gray-400 hover:text-primary-600 transition-colors"
+            class="text-gray-400 hover:text-primary-600 transition-colors dark:text-dark-500 dark:hover:text-primary-400"
             aria-label="social.name"
           >
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

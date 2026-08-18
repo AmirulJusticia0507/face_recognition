@@ -15,7 +15,7 @@ const isAuthPage = computed(() => {
 })
 
 const mainClasses = computed(() => {
-  const base = 'min-h-screen bg-gray-50 transition-all duration-300'
+  const base = 'min-h-screen bg-gray-50 dark:bg-dark-950 transition-all duration-300'
   const sidebarWidth = sidebarStore.isCollapsed ? 'lg:ml-20' : 'lg:ml-64'
   return `${base} ${sidebarWidth}`
 })

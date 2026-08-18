@@ -138,14 +138,14 @@ async function loadHistory() {
 <template>
   <div class="space-y-6">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900">Forensic Analysis</h1>
-      <p class="text-gray-500 mt-1">Analisis manipulasi gambar menggunakan berbagai metode forensik digital</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-dark-100">Forensic Analysis</h1>
+      <p class="text-gray-500 mt-1 dark:text-dark-400">Analisis manipulasi gambar menggunakan berbagai metode forensik digital</p>
     </div>
 
     <!-- Method Selection -->
     <div class="card">
       <div class="card-header">
-        <h2 class="text-lg font-semibold text-gray-900">Pilih Metode Analisis</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-100">Pilih Metode Analisis</h2>
       </div>
       <div class="card-body">
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
@@ -153,19 +153,19 @@ async function loadHistory() {
             v-for="m in methods"
             :key="m.id"
             @click="method = m.id"
-            :class="[
-              'relative p-4 rounded-xl border-2 transition-all duration-200 text-left',
-              method === m.id
-                ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500'
-                : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50',
-              !m.available && 'opacity-50'
-            ]"
+              :class="[
+                'relative p-4 rounded-xl border-2 transition-all duration-200 text-left',
+                method === m.id
+                  ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-500 dark:bg-primary-900/20'
+                  : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 dark:border-dark-600 dark:bg-dark-800 dark:hover:border-dark-500 dark:hover:bg-dark-700',
+                !m.available && 'opacity-50'
+              ]"
           >
-            <div class="font-semibold text-sm" :class="method === m.id ? 'text-primary-700' : 'text-gray-900'">{{ m.name }}</div>
-            <div class="text-xs text-gray-500 mt-1">{{ m.desc }}</div>
+            <div class="font-semibold text-sm" :class="method === m.id ? 'text-primary-700 dark:text-primary-400' : 'text-gray-900 dark:text-dark-100'">{{ m.name }}</div>
+            <div class="text-xs text-gray-500 mt-1 dark:text-dark-400">{{ m.desc }}</div>
             <span
               v-if="!m.available"
-              class="absolute top-2 right-2 text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full"
+              class="absolute top-2 right-2 text-[10px] bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full dark:bg-dark-600 dark:text-dark-300"
             >Soon</span>
             <span
               v-if="m.available"
@@ -181,7 +181,7 @@ async function loadHistory() {
       <!-- Upload Area -->
       <div class="card">
         <div class="card-header flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">Upload Gambar</h2>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-100">Upload Gambar</h2>
           <button
             v-if="selectedFile"
             @click="removeFile"
@@ -197,20 +197,20 @@ async function loadHistory() {
             @drop="handleDrop"
             :class="[
               'border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors',
-              dragActive ? 'border-primary-400 bg-primary-50' : 'border-gray-300 hover:border-gray-400'
+              dragActive ? 'border-primary-400 bg-primary-50 dark:bg-primary-900/20' : 'border-gray-300 hover:border-gray-400 dark:border-dark-600 dark:hover:border-dark-500'
             ]"
             @click="$refs.fileInput.click()"
           >
             <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            <p class="text-gray-600 font-medium">Seret & lepas gambar di sini</p>
-            <p class="text-sm text-gray-400 mt-1">atau klik untuk memilih file</p>
-            <p class="text-xs text-gray-400 mt-2">Mendukung JPG, PNG, WebP</p>
+            <p class="text-gray-600 font-medium dark:text-dark-200">Seret & lepas gambar di sini</p>
+            <p class="text-sm text-gray-400 mt-1 dark:text-dark-400">atau klik untuk memilih file</p>
+            <p class="text-xs text-gray-400 mt-2 dark:text-dark-500">Mendukung JPG, PNG, WebP</p>
           </div>
 
           <div v-else class="space-y-4">
-            <div class="relative rounded-xl overflow-hidden border border-gray-200">
+            <div class="relative rounded-xl overflow-hidden border border-gray-200 dark:border-dark-600">
               <img :src="previewUrl" class="w-full h-auto max-h-80 object-contain bg-gray-50" />
               <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-3">
                 <p class="text-white text-sm font-medium truncate">{{ selectedFile.name }}</p>
@@ -247,10 +247,10 @@ async function loadHistory() {
       <!-- Results Area -->
       <div class="card">
         <div class="card-header">
-          <h2 class="text-lg font-semibold text-gray-900">Hasil Analisis</h2>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-100">Hasil Analisis</h2>
         </div>
         <div class="card-body">
-          <div v-if="!result && !analyzing" class="text-center py-16 text-gray-400">
+          <div v-if="!result && !analyzing" class="text-center py-16 text-gray-400 dark:text-dark-500">
             <svg class="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -270,7 +270,7 @@ async function loadHistory() {
 
           <div v-if="result && !analyzing" class="space-y-5">
             <!-- Heatmap Image (skip for metadata) -->
-            <div v-if="method !== 'metadata'" class="rounded-xl overflow-hidden border border-gray-200">
+            <div v-if="method !== 'metadata'" class="rounded-xl overflow-hidden border border-gray-200 dark:border-dark-600">
               <img
                 :src="'data:image/jpeg;base64,' + (result.ela_image_base64 || result.noise_map_base64 || result.sharpening_map_base64 || result.median_map_base64 || result.ghost_image_base64 || result.copymove_image_base64)"
                 class="w-full h-auto max-h-72 object-contain bg-gray-900"
@@ -279,23 +279,23 @@ async function loadHistory() {
 
             <!-- Statistics Grid -->
             <div class="grid grid-cols-3 gap-3">
-              <div class="bg-gray-50 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold text-gray-900">
+              <div class="bg-gray-50 rounded-lg p-3 text-center dark:bg-dark-800">
+                <div class="text-2xl font-bold text-gray-900 dark:text-dark-100">
                   {{ statValue1 }}
                 </div>
-                <div class="text-xs text-gray-500 mt-1">
+                <div class="text-xs text-gray-500 mt-1 dark:text-dark-400">
                   {{ statLabel1 }}
                 </div>
               </div>
-              <div class="bg-gray-50 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold text-gray-900">
+              <div class="bg-gray-50 rounded-lg p-3 text-center dark:bg-dark-800">
+                <div class="text-2xl font-bold text-gray-900 dark:text-dark-100">
                   {{ statValue2 }}
                 </div>
-                <div class="text-xs text-gray-500 mt-1">
+                <div class="text-xs text-gray-500 mt-1 dark:text-dark-400">
                   {{ statLabel2 }}
                 </div>
               </div>
-              <div class="bg-gray-50 rounded-lg p-3 text-center">
+              <div class="bg-gray-50 rounded-lg p-3 text-center dark:bg-dark-800">
                 <div class="text-2xl font-bold" :class="suspiciousPct > 5 ? 'text-red-600' : suspiciousPct > 1 ? 'text-yellow-600' : 'text-green-600'">
                   {{ suspiciousPct }}%
                 </div>
@@ -306,19 +306,19 @@ async function loadHistory() {
             </div>
 
             <!-- JPEG Ghost extra info -->
-            <div v-if="method === 'jpeg_ghost' && result.quality_scores" class="bg-gray-50 rounded-xl p-4">
-              <h3 class="font-semibold text-gray-900 mb-3">Quality-Error Curve</h3>
+            <div v-if="method === 'jpeg_ghost' && result.quality_scores" class="bg-gray-50 rounded-xl p-4 dark:bg-dark-800">
+              <h3 class="font-semibold text-gray-900 mb-3 dark:text-dark-100">Quality-Error Curve</h3>
               <div class="flex items-end gap-px h-24">
                 <div
                   v-for="(pair, idx) in result.quality_scores"
                   :key="idx"
                   class="flex-1 rounded-t transition-all duration-300"
-                  :class="pair[0] === result.original_quality ? 'bg-primary-500' : pair[0] === result.ghost_quality ? 'bg-red-500' : 'bg-gray-300'"
+                  :class="pair[0] === result.original_quality ? 'bg-primary-500' : pair[0] === result.ghost_quality ? 'bg-red-500' : 'bg-gray-300 dark:bg-dark-600'"
                   :style="{ height: (pair[1] / maxQualityError * 100) + '%' }"
                   :title="'Q' + pair[0] + ': ' + pair[1]"
                 ></div>
               </div>
-              <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+              <div class="flex justify-between text-[10px] text-gray-400 dark:text-dark-500 mt-1">
                 <span>Q1</span>
                 <span>Q50</span>
                 <span>Q99</span>
@@ -330,8 +330,8 @@ async function loadHistory() {
             </div>
 
             <!-- Metadata: Anomalies List -->
-            <div v-if="method === 'metadata' && result.anomalies" class="bg-gray-50 rounded-xl p-4">
-              <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div v-if="method === 'metadata' && result.anomalies" class="bg-gray-50 rounded-xl p-4 dark:bg-dark-800">
+              <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2 dark:text-dark-100">
                 <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
@@ -339,7 +339,7 @@ async function loadHistory() {
               </h3>
               <div v-if="result.anomalies.length === 0" class="text-sm text-green-600 font-medium">Tidak ada anomali</div>
               <ul v-else class="space-y-2">
-                <li v-for="(a, i) in result.anomalies" :key="i" class="flex items-start gap-2 text-sm text-gray-700">
+                <li v-for="(a, i) in result.anomalies" :key="i" class="flex items-start gap-2 text-sm text-gray-700 dark:text-dark-200">
                   <span class="text-amber-500 mt-0.5">&#9679;</span>
                   {{ a }}
                 </li>
@@ -347,31 +347,31 @@ async function loadHistory() {
             </div>
 
             <!-- Metadata: EXIF Table -->
-            <div v-if="method === 'metadata' && result.metadata" class="bg-gray-50 rounded-xl p-4">
-              <h3 class="font-semibold text-gray-900 mb-3">Data EXIF</h3>
+            <div v-if="method === 'metadata' && result.metadata" class="bg-gray-50 rounded-xl p-4 dark:bg-dark-800">
+              <h3 class="font-semibold text-gray-900 mb-3 dark:text-dark-100">Data EXIF</h3>
               <div class="space-y-1.5 text-sm">
                 <div v-for="(val, key) in result.metadata.exif" :key="key" class="flex gap-2" v-show="key !== 'ExifIFD' && key !== 'GPSInfo'">
-                  <span class="text-gray-500 min-w-[140px] shrink-0">{{ key }}</span>
-                  <span class="text-gray-900 font-medium break-all">{{ val }}</span>
+                  <span class="text-gray-500 min-w-[140px] shrink-0 dark:text-dark-400">{{ key }}</span>
+                  <span class="text-gray-900 font-medium break-all dark:text-dark-100">{{ val }}</span>
                 </div>
               </div>
             </div>
 
             <!-- Analysis Conclusion -->
-            <div class="bg-gray-50 rounded-xl p-4">
-              <h3 class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+            <div class="bg-gray-50 rounded-xl p-4 dark:bg-dark-800">
+              <h3 class="font-semibold text-gray-900 mb-2 flex items-center gap-2 dark:text-dark-100">
                 <svg class="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Kesimpulan Analisis
               </h3>
-              <p class="text-sm text-gray-700 leading-relaxed" v-html="result.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')"></p>
+              <p class="text-sm text-gray-700 leading-relaxed dark:text-dark-200" v-html="result.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')"></p>
             </div>
 
             <!-- Suspicion Level Bar -->
             <div>
               <div class="flex items-center justify-between text-sm mb-1">
-                <span class="text-gray-600">{{ method === 'metadata' ? 'Tingkat Kepercayaan' : 'Tingkat Kecurigaan' }}</span>
+                <span class="text-gray-600 dark:text-dark-300">{{ method === 'metadata' ? 'Tingkat Kepercayaan' : 'Tingkat Kecurigaan' }}</span>
                 <span
                   class="font-semibold"
                   :class="method === 'metadata'
@@ -384,7 +384,7 @@ async function loadHistory() {
                   }}
                 </span>
               </div>
-              <div class="w-full bg-gray-200 rounded-full h-2.5">
+              <div class="w-full bg-gray-200 rounded-full h-2.5 dark:bg-dark-600">
                 <div
                   class="h-2.5 rounded-full transition-all duration-500"
                   :class="method === 'metadata'
@@ -402,7 +402,7 @@ async function loadHistory() {
     <!-- History Section -->
     <div class="card">
       <div class="card-header flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-gray-900">Riwayat Analisis</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-100">Riwayat Analisis</h2>
         <button @click="loadHistory" class="btn-secondary text-sm">
           {{ showHistory ? 'Sembunyikan' : 'Tampilkan Riwayat' }}
         </button>
@@ -414,7 +414,7 @@ async function loadHistory() {
         <div v-else class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
-              <tr class="text-left text-gray-500 border-b">
+              <tr class="text-left text-gray-500 border-b dark:text-dark-400 dark:border-dark-700">
                 <th class="pb-2 font-medium">ID</th>
                 <th class="pb-2 font-medium">Metode</th>
                 <th class="pb-2 font-medium">Tanggal</th>
@@ -422,15 +422,15 @@ async function loadHistory() {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="log in history" :key="log.id" class="border-b border-gray-100 hover:bg-gray-50">
-                <td class="py-3 font-mono text-gray-600">#{{ log.id }}</td>
+              <tr v-for="log in history" :key="log.id" class="border-b border-gray-100 hover:bg-gray-50 dark:border-dark-700 dark:hover:bg-dark-800">
+                <td class="py-3 font-mono text-gray-600 dark:text-dark-300">#{{ log.id }}</td>
                 <td class="py-3">
                   <span class="px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700">
                     {{ log.method_display }}
                   </span>
                 </td>
-                <td class="py-3 text-gray-600">{{ new Date(log.created_at).toLocaleString('id-ID') }}</td>
-                <td class="py-3 text-gray-600 text-xs max-w-xs truncate">{{ log.analysis_text }}</td>
+                <td class="py-3 text-gray-600 dark:text-dark-300">{{ new Date(log.created_at).toLocaleString('id-ID') }}</td>
+                <td class="py-3 text-gray-600 text-xs max-w-xs truncate dark:text-dark-300">{{ log.analysis_text }}</td>
               </tr>
             </tbody>
           </table>

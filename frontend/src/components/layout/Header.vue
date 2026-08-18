@@ -2,11 +2,13 @@
 import { computed } from 'vue'
 import { useSidebarStore } from '../../stores/sidebar'
 import { useAuthStore } from '../../stores/auth'
+import { useDarkModeStore } from '../../stores/darkMode'
 import { performLogout } from '../../services/sso'
 import { useRouter } from 'vue-router'
 
 const sidebarStore = useSidebarStore()
 const authStore = useAuthStore()
+const darkModeStore = useDarkModeStore()
 const router = useRouter()
 
 const userName = computed(() => authStore.userName || 'Admin User')
@@ -26,13 +28,13 @@ function handleLogout() {
 </script>
 
 <template>
-  <header class="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
+  <header class="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm dark:bg-dark-900 dark:border-dark-700">
     <div class="flex items-center justify-between h-16 px-4 lg:px-6">
       <!-- Left Side - Mobile Menu Button -->
       <div class="flex items-center gap-4">
         <button
           @click="sidebarStore.toggleMobile"
-          class="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+          class="lg:hidden p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-200"
           aria-label="Toggle menu"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,8 +52,24 @@ function handleLogout() {
 
       <!-- Right Side - User Menu & Notifications -->
       <div class="flex items-center gap-3">
+        <!-- Dark Mode Toggle -->
+        <button
+          @click="darkModeStore.toggle"
+          class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-200"
+          :aria-label="darkModeStore.isDark ? 'Switch to light mode' : 'Switch to dark mode'"
+        >
+          <!-- Sun icon (shown in dark mode) -->
+          <svg v-if="darkModeStore.isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <!-- Moon icon (shown in light mode) -->
+          <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+        </button>
+
         <!-- Notifications -->
-        <button class="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors" aria-label="Notifications">
+        <button class="relative p-2 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-dark-200" aria-label="Notifications">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
@@ -62,7 +80,7 @@ function handleLogout() {
         <div class="relative" id="user-menu">
           <button
             @click="$refs.userMenu?.classList.toggle('hidden')"
-            class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+            class="flex items-center gap-3 p-1.5 rounded-lg hover:bg-gray-100 transition-colors dark:hover:bg-dark-700"
             aria-label="User menu"
             aria-expanded="false"
             aria-haspopup="true"
@@ -74,8 +92,8 @@ function handleLogout() {
               </svg>
             </div>
             <div class="hidden md:block text-left">
-              <p class="text-sm font-medium text-gray-900">{{ userName }}</p>
-              <p class="text-xs text-gray-500">{{ userEmail }}</p>
+              <p class="text-sm font-medium text-gray-900 dark:text-dark-100">{{ userName }}</p>
+              <p class="text-xs text-gray-500 dark:text-dark-400">{{ userEmail }}</p>
             </div>
             <svg class="w-4 h-4 text-gray-500 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -85,7 +103,7 @@ function handleLogout() {
           <!-- Dropdown Menu -->
           <div
             ref="userMenu"
-            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 hidden z-50"
+            class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 py-1 hidden z-50 dark:bg-dark-800 dark:border-dark-600"
             role="menu"
             aria-orientation="vertical"
           >
@@ -94,7 +112,7 @@ function handleLogout() {
               <button
                 v-else
                 @click="item.action"
-                :class="['flex items-center gap-3 w-full px-4 py-2 text-sm transition-colors', item.class || 'text-gray-700 hover:bg-gray-50']"
+                :class="['flex items-center gap-3 w-full px-4 py-2 text-sm transition-colors', item.class || 'text-gray-700 hover:bg-gray-50 dark:text-dark-200 dark:hover:bg-dark-700']"
                 role="menuitem"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
