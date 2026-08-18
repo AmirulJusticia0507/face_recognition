@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { violationLogsApi } from '../services/api'
 import Swal from 'sweetalert2'
 
@@ -12,6 +12,23 @@ const perPage = 15
 const showDeleteModal = ref(false)
 const logToDelete = ref(null)
 const stats = ref({ total: 0, today: 0, thisWeek: 0 })
+const chartData = ref({
+  labels: ['Total', 'Hari Ini', 'Minggu Ini'],
+  datasets: [
+    {
+      label: 'Jumlah Pelanggaran',
+      data: [0, 0, 0],
+      backgroundColor: ['#667eea', '#764bcb', '#f6e05e'],
+    }
+  ]
+})
+const chartOptions = ref({
+  responsive: true,
+  plugins: {
+    legend: { display: false },
+    tooltip: { enabled: true }
+  }
+})
 
 const fetchLogs = async () => {
   loading.value = true
@@ -31,6 +48,16 @@ const fetchStats = async () => {
   try {
     const response = await violationLogsApi.getStats()
     stats.value = response.data
+    chartData.value = {
+      labels: ['Total', 'Hari Ini', 'Minggu Ini'],
+      datasets: [
+        {
+          label: 'Jumlah Pelanggaran',
+          data: [stats.value.total, stats.value.today, stats.value.thisWeek],
+          backgroundColor: ['#667eea', '#764bcb', '#f6e05e'],
+        }
+      ]
+    }
   } catch (error) { /* ignore */ }
 }
 
@@ -63,9 +90,32 @@ const getTypeBadge = (type) => {
 
 const formatDate = (dateString) => new Date(dateString).toLocaleString()
 
+let chartInstance = null
+
 onMounted(() => {
   fetchLogs()
   fetchStats()
+  // Initialize Chart.js after DOM is updated
+  setTimeout(() => {
+    const ctx = document.getElementById('violationStatsChart')?.getContext('2d')
+    if (ctx) {
+      if (chartInstance) {
+        chartInstance.destroy()
+      }
+      chartInstance = new window.Chart(ctx, {
+        type: 'bar',
+        data: chartData.value,
+        options: chartOptions.value
+      })
+    }
+  }, 100)
+})
+
+onUnmounted(() => {
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
 })
 </script>
 
@@ -76,25 +126,13 @@ onMounted(() => {
       <p class="text-gray-500 mt-1">View and manage detected traffic violations</p>
     </div>
 
-    <!-- Stats -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      <div class="card">
-        <div class="card-body text-center">
-          <p class="text-3xl font-bold text-gray-900">{{ stats.total }}</p>
-          <p class="text-sm text-gray-500">Total Violations</p>
-        </div>
+    <!-- Chart -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="text-xl font-semibold text-gray-900">Statistik Pelanggaran</h2>
       </div>
-      <div class="card">
-        <div class="card-body text-center">
-          <p class="text-3xl font-bold text-orange-600">{{ stats.today }}</p>
-          <p class="text-sm text-gray-500">Today</p>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-body text-center">
-          <p class="text-3xl font-bold text-blue-600">{{ stats.thisWeek }}</p>
-          <p class="text-sm text-gray-500">This Week</p>
-        </div>
+      <div class="card-body p-0">
+        <canvas id="violationStatsChart" class="w-full h-64"></canvas>
       </div>
     </div>
 
