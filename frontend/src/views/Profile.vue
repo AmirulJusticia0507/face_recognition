@@ -1,11 +1,11 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
-import { useStore } from '../stores/sidebar'
-import { viAlert } from '../services/api'
+import Swal from 'sweetalert2'
+import { useSidebarStore } from '../stores/sidebar'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const store = useStore()
+const store = useSidebarStore()
 
 const user = ref({
   name: '',
@@ -36,10 +36,10 @@ const fetchUser = async () => {
         joined_date: data.joined_date ? new Date(data.joined_date).toLocaleDateString('id-ID') : ''
       }
     } else {
-      viAlert('error', 'Error', 'Gagal memuat profil')
+       Swal.fire('error', 'Error', 'Gagal memuat profil')
     }
   } catch (error) {
-    viAlert('error', 'Error', 'Gagal menghubungi server')
+     Swal.fire('error', 'Error', 'Gagal menghubungi server')
     console.error(error)
   } finally {
     loading.value = false
@@ -63,9 +63,9 @@ const handleLogout = async () => {
       localStorage.removeItem('refresh_expires_at')
       localStorage.removeItem('token_response')
       router.push('/login')
-      viAlert('success', 'Berhasil', 'Anda telah logout')
+       Swal.fire('success', 'Berhasil', 'Anda telah logout')
     } catch (error) {
-      viAlert('error', 'Error', 'Gagal logout')
+       Swal.fire('error', 'Error', 'Gagal logout')
       router.push('/login')
     }
   }
@@ -152,4 +152,5 @@ const handleLogout = async () => {
     </div>
 
   </div>
+</div>
 </template>

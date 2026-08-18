@@ -26,6 +26,12 @@ const routes = [
     meta: { title: 'Data Orang', requiresAuth: true }
   },
   {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('../views/Profile.vue'),
+    meta: { title: 'Profil', requiresAuth: true }
+  },
+  {
     path: '/people/register',
     name: 'RegisterPerson',
     component: () => import('../views/RegisterPerson.vue'),
@@ -80,10 +86,10 @@ const routes = [
     meta: { title: 'Forensic Analysis', requiresAuth: true }
   },
   {
-    path: '/about',
-    name: 'About',
-    component: () => import('../views/About.vue'),
-    meta: { title: 'About', requiresAuth: true }
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('../views/Settings.vue'),
+    meta: { title: 'Settings', requiresAuth: true }
   },
   {
     path: '/login',

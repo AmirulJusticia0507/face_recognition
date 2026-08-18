@@ -718,8 +718,8 @@ class JogjaCCTVListView(APIView):
                         'status': 'online' if status == '0' else 'offline',
                     })
                 return Response(cameras[:20])
-except Exception as e:
-                    pass
+        except Exception as e:
+            pass
         return Response(ETLE_CAMERAS)
 
 

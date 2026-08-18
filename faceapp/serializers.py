@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     FaceComparisonLog, ForensicLog, Person, FaceImage,
-    FaceLog, ViolationLog, PoseLog, ModelSetting,
+    FaceLog, ViolationLog, PoseLog, ModelSetting, Camera,
 )
 
 
