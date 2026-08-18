@@ -19,7 +19,7 @@ const methods = [
   { id: 'median_filter', name: 'Median', desc: 'Median Filter Det.', available: true },
   { id: 'copy_move', name: 'Copy-Move', desc: 'Deteksi Copy-Move', available: true },
   { id: 'jpeg_ghost', name: 'JPEG Ghost', desc: 'JPEG Ghost Det.', available: true },
-  { id: 'metadata', name: 'Metadata', desc: 'Metadata Forensics', available: false },
+  { id: 'metadata', name: 'Metadata', desc: 'Metadata Forensics', available: true },
 ]
 
 const currentMethod = computed(() => methods.find(m => m.id === method.value))
@@ -32,27 +32,29 @@ const suspiciousPct = computed(() => {
 const statValue1 = computed(() => {
   if (method.value === 'copy_move') return result.value?.total_matches ?? '-'
   if (method.value === 'jpeg_ghost') return result.value?.original_quality ?? '-'
+  if (method.value === 'metadata') return result.value?.anomaly_count ?? '-'
   return result.value?.mean_error ?? result.value?.mean_noise ?? result.value?.mean_sharpness ?? result.value?.mean_residue ?? '-'
 })
 
 const statValue2 = computed(() => {
   if (method.value === 'copy_move') return result.value?.cluster_count ?? '-'
   if (method.value === 'jpeg_ghost') return result.value?.ghost_quality ?? '-'
+  if (method.value === 'metadata') return (result.value?.software_type ?? '-').charAt(0).toUpperCase() + (result.value?.software_type ?? '').slice(1)
   return result.value?.max_error ?? result.value?.max_noise ?? result.value?.max_sharpness ?? result.value?.max_residue ?? '-'
 })
 
 const statLabel1 = computed(() => {
-  const labels = { ela: 'Mean Error', noise: 'Mean Noise', sharpening: 'Mean Sharpness', median_filter: 'Mean Residue', jpeg_ghost: 'Original Q', copy_move: 'Total Matches' }
+  const labels = { ela: 'Mean Error', noise: 'Mean Noise', sharpening: 'Mean Sharpness', median_filter: 'Mean Residue', jpeg_ghost: 'Original Q', copy_move: 'Total Matches', metadata: 'Anomalies' }
   return labels[method.value] || 'Value 1'
 })
 
 const statLabel2 = computed(() => {
-  const labels = { ela: 'Max Error', noise: 'Max Noise', sharpening: 'Max Sharpness', median_filter: 'Max Residue', jpeg_ghost: 'Ghost Q', copy_move: 'Clusters' }
+  const labels = { ela: 'Max Error', noise: 'Max Noise', sharpening: 'Max Sharpness', median_filter: 'Max Residue', jpeg_ghost: 'Ghost Q', copy_move: 'Clusters', metadata: 'Software Type' }
   return labels[method.value] || 'Value 2'
 })
 
 const statLabel3 = computed(() => {
-  const labels = { ela: 'Area Suspicious', noise: 'Inconsistency', sharpening: 'Area Suspicious', median_filter: 'Inconsistency', jpeg_ghost: 'Double Compress', copy_move: 'Forgery Coverage' }
+  const labels = { ela: 'Area Suspicious', noise: 'Inconsistency', sharpening: 'Area Suspicious', median_filter: 'Inconsistency', jpeg_ghost: 'Double Compress', copy_move: 'Forgery Coverage', metadata: 'Confidence' }
   return labels[method.value] || 'Suspicious'
 })
 
@@ -267,8 +269,8 @@ async function loadHistory() {
           </div>
 
           <div v-if="result && !analyzing" class="space-y-5">
-            <!-- Heatmap Image (dynamic key) -->
-            <div class="rounded-xl overflow-hidden border border-gray-200">
+            <!-- Heatmap Image (skip for metadata) -->
+            <div v-if="method !== 'metadata'" class="rounded-xl overflow-hidden border border-gray-200">
               <img
                 :src="'data:image/jpeg;base64,' + (result.ela_image_base64 || result.noise_map_base64 || result.sharpening_map_base64 || result.median_map_base64 || result.ghost_image_base64 || result.copymove_image_base64)"
                 class="w-full h-auto max-h-72 object-contain bg-gray-900"
@@ -327,6 +329,34 @@ async function loadHistory() {
               </div>
             </div>
 
+            <!-- Metadata: Anomalies List -->
+            <div v-if="method === 'metadata' && result.anomalies" class="bg-gray-50 rounded-xl p-4">
+              <h3 class="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Anomali Terdeteksi ({{ result.anomaly_count }})
+              </h3>
+              <div v-if="result.anomalies.length === 0" class="text-sm text-green-600 font-medium">Tidak ada anomali</div>
+              <ul v-else class="space-y-2">
+                <li v-for="(a, i) in result.anomalies" :key="i" class="flex items-start gap-2 text-sm text-gray-700">
+                  <span class="text-amber-500 mt-0.5">&#9679;</span>
+                  {{ a }}
+                </li>
+              </ul>
+            </div>
+
+            <!-- Metadata: EXIF Table -->
+            <div v-if="method === 'metadata' && result.metadata" class="bg-gray-50 rounded-xl p-4">
+              <h3 class="font-semibold text-gray-900 mb-3">Data EXIF</h3>
+              <div class="space-y-1.5 text-sm">
+                <div v-for="(val, key) in result.metadata.exif" :key="key" class="flex gap-2" v-show="key !== 'ExifIFD' && key !== 'GPSInfo'">
+                  <span class="text-gray-500 min-w-[140px] shrink-0">{{ key }}</span>
+                  <span class="text-gray-900 font-medium break-all">{{ val }}</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Analysis Conclusion -->
             <div class="bg-gray-50 rounded-xl p-4">
               <h3 class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
@@ -341,19 +371,26 @@ async function loadHistory() {
             <!-- Suspicion Level Bar -->
             <div>
               <div class="flex items-center justify-between text-sm mb-1">
-                <span class="text-gray-600">Tingkat Kecurigaan</span>
+                <span class="text-gray-600">{{ method === 'metadata' ? 'Tingkat Kepercayaan' : 'Tingkat Kecurigaan' }}</span>
                 <span
                   class="font-semibold"
-                  :class="suspiciousPct > 20 ? 'text-red-600' : suspiciousPct > 5 ? 'text-yellow-600' : 'text-green-600'"
+                  :class="method === 'metadata'
+                    ? (result.confidence_pct > 70 ? 'text-green-600' : result.confidence_pct > 40 ? 'text-yellow-600' : 'text-red-600')
+                    : (suspiciousPct > 20 ? 'text-red-600' : suspiciousPct > 5 ? 'text-yellow-600' : 'text-green-600')"
                 >
-                  {{ suspiciousPct > 20 ? 'Tinggi' : suspiciousPct > 5 ? 'Sedang' : 'Rendah' }}
+                  {{ method === 'metadata'
+                    ? (result.confidence_pct > 70 ? 'Tinggi' : result.confidence_pct > 40 ? 'Sedang' : 'Rendah')
+                    : (suspiciousPct > 20 ? 'Tinggi' : suspiciousPct > 5 ? 'Sedang' : 'Rendah')
+                  }}
                 </span>
               </div>
               <div class="w-full bg-gray-200 rounded-full h-2.5">
                 <div
                   class="h-2.5 rounded-full transition-all duration-500"
-                  :class="suspiciousPct > 20 ? 'bg-red-500' : suspiciousPct > 5 ? 'bg-yellow-500' : 'bg-green-500'"
-                  :style="{ width: Math.min(suspiciousPct, 100) + '%' }"
+                  :class="method === 'metadata'
+                    ? (result.confidence_pct > 70 ? 'bg-green-500' : result.confidence_pct > 40 ? 'bg-yellow-500' : 'bg-red-500')
+                    : (suspiciousPct > 20 ? 'bg-red-500' : suspiciousPct > 5 ? 'bg-yellow-500' : 'bg-green-500')"
+                  :style="{ width: Math.min(method === 'metadata' ? result.confidence_pct : suspiciousPct, 100) + '%' }"
                 ></div>
               </div>
             </div>
