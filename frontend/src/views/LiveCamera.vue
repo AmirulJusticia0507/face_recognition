@@ -27,18 +27,18 @@ let stream = null
 const jogjaCenter = [-7.7956, 110.3695]
 
 const defaultCameras = [
-  { id: 1, name: 'Titik Nol Kilometer', lat: -7.7928, lng: 110.3659, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/nolkm' },
-  { id: 2, name: 'Malioboro Utara', lat: -7.7937, lng: 110.3652, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/malioboro-utara' },
-  { id: 3, name: 'Malioboro Tengah', lat: -7.7956, lng: 110.3650, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/malioboro-tengah' },
-  { id: 4, name: 'Malioboro Selatan', lat: -7.7975, lng: 110.3648, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/malioboro-selatan' },
-  { id: 5, name: 'Alun-Alun Kidul', lat: -7.8060, lng: 110.3638, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/alun-alun-selatan' },
-  { id: 6, name: 'Bundaran UGM', lat: -7.7623, lng: 110.3797, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/ugm' },
-  { id: 7, name: 'Simpang Prambanan', lat: -7.7476, lng: 110.4341, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/prambanan' },
-  { id: 8, name: 'Pantai Parangtritis', lat: -8.0278, lng: 110.3307, source: 'bantul', stream: 'https://bantulkab.go.id/cctv/stream/parangtritis' },
-  { id: 9, name: 'Candi Ratu Boko', lat: -7.7716, lng: 110.4504, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/ratuboko' },
-  { id: 10, name: 'Gunung Merapi (Klangon)', lat: -7.5395, lng: 110.4008, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/merapi-klangon' },
-  { id: 11, name: 'Kebun Buah Mangunan', lat: -7.9877, lng: 110.3673, source: 'bantul', stream: 'https://bantulkab.go.id/cctv/stream/mangunan' },
-  { id: 12, name: 'Tugu Jogja', lat: -7.7895, lng: 110.3633, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/tugu' },
+  { id: 1, name: 'Simpang APMD (PTZ)', lat: -7.791971853164589, lng: 110.39164423942567, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_apmd.stream/playlist.m3u8' },
+  { id: 2, name: 'Simpang Gondomanan (PTZ)', lat: -7.801683039634787, lng: 110.36917244417295, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_gondomanan.stream/playlist.m3u8' },
+  { id: 3, name: 'Simpang Jokteng Kulon (PTZ)', lat: -7.81294, lng: 110.35594, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_joktengkulon.stream/playlist.m3u8' },
+  { id: 4, name: 'Simpang Jokteng Wetan', lat: -7.814380894891082, lng: 110.36806762218477, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_joktengwetan.stream/playlist.m3u8' },
+  { id: 5, name: 'Simpang KM Nol (PTZ)', lat: -7.8010758219105565, lng: 110.36475215767108, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8' },
+  { id: 6, name: 'Simpang Permata (PTZ)', lat: -7.8015437731163875, lng: 110.37307262420656, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_permata.stream/playlist.m3u8' },
+  { id: 7, name: 'Simpang PKU Muh. (PTZ)', lat: -7.801283, lng: 110.362061, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_pkumuh.stream/playlist.m3u8' },
+  { id: 8, name: 'Simpang Sentul (PTZ)', lat: -7.801442745827733, lng: 110.3779435343926, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_sentul.stream/playlist.m3u8' },
+  { id: 9, name: 'Sungai Gajah Wong 2', lat: -7.790914106163658, lng: 110.39598405361177, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/bpbd/BPBD_gajahwong2.stream/playlist.m3u8' },
+  { id: 10, name: 'Sungai Winongo', lat: -7.789489704931309, lng: 110.35666287355627, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/bpbd/BPBD_kaliwinongo.stream/playlist.m3u8' },
+  { id: 11, name: 'Sungai Ngentak', lat: -7.722645179146617, lng: 110.38926337561489, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/bpbd/BPBD_ngentak.stream/playlist.m3u8' },
+  { id: 12, name: 'Malioboro_Selatan_Teteg', lat: -7.789968068779914, lng: 110.36602878685423, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/malioboro/Malioboro_1_Selatan_Teteg.stream/playlist.m3u8' },
 ]
 
 const filteredCameras = ref(defaultCameras)

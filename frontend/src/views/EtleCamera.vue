@@ -103,7 +103,7 @@ const detectViolation = async () => {
 
 onMounted(async () => {
   try {
-    const res = await etleCameraApi.getCameras()
+    const res = await etleCameraApi.getJogjaCameras()
     cameras.value = res.data || []
   } catch {
     cameras.value = []

@@ -3,6 +3,7 @@ import uuid
 import time
 import base64
 import tempfile
+import requests
 from datetime import timedelta
 
 import cv2
@@ -678,19 +679,47 @@ class PoseEstimationView(APIView):
 
 
 ETLE_CAMERAS = [
-    {'id': 'cam-001', 'name': 'Titik Nol Kilometer', 'lat': -7.7928, 'lng': 110.3659, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/nolkm', 'status': 'online'},
-    {'id': 'cam-002', 'name': 'Malioboro Utara', 'lat': -7.7937, 'lng': 110.3652, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/malioboro-utara', 'status': 'online'},
-    {'id': 'cam-003', 'name': 'Malioboro Tengah', 'lat': -7.7956, 'lng': 110.3650, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/malioboro-tengah', 'status': 'online'},
-    {'id': 'cam-004', 'name': 'Tugu Jogja', 'lat': -7.7895, 'lng': 110.3633, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/tugu', 'status': 'online'},
-    {'id': 'cam-005', 'name': 'Alun-Alun Kidul', 'lat': -7.8060, 'lng': 110.3638, 'source': 'jogjakota', 'stream': 'https://cctv.jogjakota.go.id/stream/alun-alun-selatan', 'status': 'online'},
-    {'id': 'cam-006', 'name': 'Simpang Prambanan', 'lat': -7.7476, 'lng': 110.4341, 'source': 'sleman', 'stream': 'https://24jam.slemankab.go.id/stream/prambanan', 'status': 'online'},
-    {'id': 'cam-007', 'name': 'Bundaran UGM', 'lat': -7.7623, 'lng': 110.3797, 'source': 'sleman', 'stream': 'https://24jam.slemankab.go.id/stream/ugm', 'status': 'online'},
-    {'id': 'cam-008', 'name': 'Pantai Parangtritis', 'lat': -8.0278, 'lng': 110.3307, 'source': 'bantul', 'stream': 'https://bantulkab.go.id/cctv/stream/parangtritis', 'status': 'online'},
+    {'id': 'cam-001', 'name': 'Simpang APMD (PTZ)', 'lat': -7.791971853164589, 'lng': 110.39164423942567, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_apmd.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-002', 'name': 'Simpang Gondomanan (PTZ)', 'lat': -7.801683039634787, 'lng': 110.36917244417295, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_gondomanan.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-003', 'name': 'Simpang Jokteng Kulon (PTZ)', 'lat': -7.81294, 'lng': 110.35594, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_joktengkulon.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-004', 'name': 'Simpang Jokteng Wetan', 'lat': -7.814380894891082, 'lng': 110.36806762218477, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_joktengwetan.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-005', 'name': 'Simpang KM Nol (PTZ)', 'lat': -7.8010758219105565, 'lng': 110.36475215767108, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-006', 'name': 'Simpang Permata (PTZ)', 'lat': -7.8015437731163875, 'lng': 110.37307262420656, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_permata.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-007', 'name': 'Simpang PKU Muh. (PTZ)', 'lat': -7.801283, 'lng': 110.362061, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_pkumuh.stream/playlist.m3u8', 'status': 'online'},
+    {'id': 'cam-008', 'name': 'Simpang Sentul (PTZ)', 'lat': -7.801442745827733, 'lng': 110.3779435343926, 'source': 'jogjakota', 'stream': 'https://cctvjss.jogjakota.go.id/atcs/ATCS_sentul.stream/playlist.m3u8', 'status': 'online'},
 ]
 
 
 class EtleCameraListView(APIView):
     def get(self, request):
+        return Response(ETLE_CAMERAS)
+
+class JogjaCCTVListView(APIView):
+    def get(self, request):
+        try:
+            resp = requests.get(
+                'https://cctv.jogjakota.go.id/home/getdata',
+                timeout=10,
+                headers={'Accept': 'application/json'}
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                cameras = []
+                for cam in data:
+                    link = cam.get('cctv_link', '')
+                    status = cam.get('cctv_status', '0')
+                    cameras.append({
+                        'id': cam.get('cctv_id', ''),
+                        'name': cam.get('cctv_title', ''),
+                        'lat': float(cam.get('cctv_latitude', 0)) if cam.get('cctv_latitude') else None,
+                        'lng': float(cam.get('cctv_longitude', 0)) if cam.get('cctv_longitude') else None,
+                        'source': 'jogjakota',
+                        'stream': link.replace('https://cctvjss.jogjakota.go.id/', 'https://cctv.jogjakota.go.id/').replace('/playlist.m3u8', '') if link else '',
+                        'status': 'online' if status == '0' else 'offline',
+                    })
+                return Response(cameras[:20])
+        except Exception as e:
+            pass
         return Response(ETLE_CAMERAS)
 
 

@@ -109,6 +109,7 @@ export const poseEstimationApi = {
 // ETLE Camera API
 export const etleCameraApi = {
   getCameras: () => api.get('/etle-camera/cameras/'),
+  getJogjaCameras: () => api.get('/etle-camera/cameras/jogja/'),
   getCameraStream: (id) => api.get(`/etle-camera/cameras/${id}/stream/`),
   detectViolation: (formData) => api.post('/etle-camera/detect/', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
