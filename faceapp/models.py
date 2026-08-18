@@ -79,3 +79,34 @@ class ViolationLog(models.Model):
 
     def __str__(self):
         return f"Violation: {self.plate_number} - {self.violation_type} at {self.violation_time.strftime('%Y-%m-%d %H:%M:%S')}"
+
+
+class ForensicLog(models.Model):
+    METHOD_CHOICES = [
+        ('ela', 'Error Level Analysis'),
+        ('noise', 'Noise Analysis'),
+        ('sharpening', 'Sharpening Detection'),
+        ('median_filter', 'Median Filter Detection'),
+        ('copy_move', 'Copy-Move Detection'),
+        ('jpeg_ghost', 'JPEG Ghost Detection'),
+        ('metadata', 'Metadata Forensics'),
+    ]
+
+    image_original = models.ImageField(upload_to='forensic/originals/')
+    image_result = models.ImageField(upload_to='forensic/results/', blank=True, null=True)
+    method = models.CharField(max_length=20, choices=METHOD_CHOICES)
+    result_json = models.JSONField(default=dict)
+    analysis_text = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.get_method_display()} - {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
+    def delete(self, *args, **kwargs):
+        self.image_original.delete(save=False)
+        if self.image_result:
+            self.image_result.delete(save=False)
+        super().delete(*args, **kwargs)

@@ -140,4 +140,12 @@ export const dashboardApi = {
   getChartData: (params) => api.get('/dashboard/charts/', { params }),
 }
 
+// Forensic Analysis API
+export const forensicApi = {
+  analyze: (formData) => api.post('/forensic/ela/', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+  getHistory: (params) => api.get('/forensic/ela/', { params }),
+}
+
 export default api

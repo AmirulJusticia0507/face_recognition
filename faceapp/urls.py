@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (FaceCompareView, face_form_view, HistoryView, ModelSettingsView, AboutView,
                     LiveCameraView, save_snapshot, pose_estimation, etle_camera, violation_logs,
-                    PersonListView, register_person, identify, delete_person)
+                    PersonListView, register_person, identify, delete_person, ForensicAnalysisView)
 
 urlpatterns = [
     path('', face_form_view, name='face-form'),
@@ -18,4 +18,5 @@ urlpatterns = [
     path('people/register/', register_person, name='register_person'),
     path('people/<int:pk>/delete/', delete_person, name='delete_person'),
     path('identify/', identify, name='identify'),
+    path('forensic/ela/', ForensicAnalysisView.as_view(), name='forensic-ela'),
 ]

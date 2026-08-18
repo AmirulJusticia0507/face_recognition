@@ -18,10 +18,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser
 from django.views.generic import ListView, TemplateView
-from .models import FaceLog, FaceComparisonLog, ViolationLog, Person
+from .models import FaceLog, FaceComparisonLog, ViolationLog, Person, ForensicLog
 from .forms import PersonForm
 from .serializers import FaceComparisonLogSerializer
 from . import face_services
+from .forensics import analyze_ela
 from deepface import DeepFace
 
 # Dummy pose score function
@@ -240,3 +241,63 @@ def delete_person(request, pk):
         person.delete()
         messages.success(request, f'{person.name} berhasil dihapus.')
     return redirect('people')
+
+
+class ForensicAnalysisView(APIView):
+    parser_classes = [MultiPartParser]
+
+    def post(self, request, *args, **kwargs):
+        image_file = request.FILES.get('image')
+        method = request.data.get('method', 'ela')
+
+        if not image_file:
+            return Response({'error': 'Gambar wajib diunggah.'}, status=400)
+
+        # Save original image temporarily
+        ext = os.path.splitext(image_file.name)[1].lower() or '.jpg'
+        filename = f"{uuid.uuid4()}{ext}"
+        upload_dir = os.path.join(settings.MEDIA_ROOT, 'forensic', 'originals')
+        os.makedirs(upload_dir, exist_ok=True)
+        filepath = os.path.join(upload_dir, filename)
+
+        with open(filepath, 'wb+') as f:
+            for chunk in image_file.chunks():
+                f.write(chunk)
+
+        try:
+            if method == 'ela':
+                result = analyze_ela(filepath)
+            else:
+                return Response({'error': f'Metode "{method}" belum tersedia.'}, status=400)
+
+            # Save log
+            log = ForensicLog.objects.create(
+                image_original=f'forensic/originals/{filename}',
+                method=method,
+                result_json=result,
+                analysis_text=result.get('analysis', ''),
+            )
+
+            return Response({
+                'log_id': log.id,
+                'method': method,
+                **result,
+            })
+
+        except Exception as e:
+            return Response({
+                'error': 'Gagal memproses gambar.',
+                'details': str(e),
+            }, status=500)
+
+    def get(self, request, *args, **kwargs):
+        logs = ForensicLog.objects.all()[:50]
+        data = [{
+            'id': log.id,
+            'method': log.method,
+            'method_display': log.get_method_display(),
+            'image_original': log.image_original.url if log.image_original else None,
+            'analysis_text': log.analysis_text,
+            'created_at': log.created_at.isoformat(),
+        } for log in logs]
+        return Response(data)

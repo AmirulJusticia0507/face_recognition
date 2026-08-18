@@ -68,6 +68,12 @@ const routes = [
     meta: { title: 'Violation Logs', requiresAuth: true }
   },
   {
+    path: '/forensic-analysis',
+    name: 'ForensicAnalysis',
+    component: () => import('../views/ForensicAnalysis.vue'),
+    meta: { title: 'Forensic Analysis', requiresAuth: true }
+  },
+  {
     path: '/about',
     name: 'About',
     component: () => import('../views/About.vue'),

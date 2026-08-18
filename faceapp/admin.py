@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import FaceComparisonLog, FaceLog, PoseLog, ViolationLog, Person, FaceImage
+from .models import FaceComparisonLog, FaceLog, PoseLog, ViolationLog, Person, FaceImage, ForensicLog
 
 
 @admin.register(Person)
@@ -36,3 +36,10 @@ class ViolationLogAdmin(admin.ModelAdmin):
     list_display = ['plate_number', 'violation_type', 'violation_time', 'status']
     list_filter = ['status', 'violation_type']
     search_fields = ['plate_number']
+
+
+@admin.register(ForensicLog)
+class ForensicLogAdmin(admin.ModelAdmin):
+    list_display = ['id', 'method', 'created_at']
+    list_filter = ['method']
+    search_fields = ['method']
