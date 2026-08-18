@@ -73,7 +73,7 @@ const handleLogout = async () => {
 </script>
 
 <template>
-<div class="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 py-8">
+<div class="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 py-8 dark:from-gray-900 dark:to-gray-800">
   <div class="max-w-2xl mx-auto">
     
     <!-- Header -->
