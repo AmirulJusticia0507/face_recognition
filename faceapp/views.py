@@ -22,7 +22,7 @@ from .models import FaceLog, FaceComparisonLog, ViolationLog, Person, ForensicLo
 from .forms import PersonForm
 from .serializers import FaceComparisonLogSerializer
 from . import face_services
-from .forensics import analyze_ela, analyze_noise, analyze_sharpening
+from .forensics import analyze_ela, analyze_noise, analyze_sharpening, analyze_median_filter, analyze_jpeg_ghost
 from deepface import DeepFace
 
 # Dummy pose score function
@@ -271,6 +271,10 @@ class ForensicAnalysisView(APIView):
                 result = analyze_noise(filepath)
             elif method == 'sharpening':
                 result = analyze_sharpening(filepath)
+            elif method == 'median_filter':
+                result = analyze_median_filter(filepath)
+            elif method == 'jpeg_ghost':
+                result = analyze_jpeg_ghost(filepath)
             else:
                 return Response({'error': f'Metode "{method}" belum tersedia.'}, status=400)
 

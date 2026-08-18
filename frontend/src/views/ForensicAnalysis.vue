@@ -16,9 +16,9 @@ const methods = [
   { id: 'ela', name: 'ELA', desc: 'Error Level Analysis', available: true },
   { id: 'noise', name: 'Noise', desc: 'Analisis Derau', available: true },
   { id: 'sharpening', name: 'Sharpening', desc: 'Deteksi Ketajaman', available: true },
-  { id: 'median_filter', name: 'Median', desc: 'Median Filter Det.', available: false },
+  { id: 'median_filter', name: 'Median', desc: 'Median Filter Det.', available: true },
   { id: 'copy_move', name: 'Copy-Move', desc: 'Deteksi Copy-Move', available: false },
-  { id: 'jpeg_ghost', name: 'JPEG Ghost', desc: 'JPEG Ghost Det.', available: false },
+  { id: 'jpeg_ghost', name: 'JPEG Ghost', desc: 'JPEG Ghost Det.', available: true },
   { id: 'metadata', name: 'Metadata', desc: 'Metadata Forensics', available: false },
 ]
 
@@ -26,7 +26,27 @@ const currentMethod = computed(() => methods.find(m => m.id === method.value))
 
 const suspiciousPct = computed(() => {
   if (!result.value) return 0
-  return result.value.suspicious_pct ?? result.value.inconsistency_pct ?? 0
+  return result.value.suspicious_pct ?? result.value.inconsistency_pct ?? result.value.double_compress_pct ?? 0
+})
+
+const statLabel1 = computed(() => {
+  const labels = { ela: 'Mean Error', noise: 'Mean Noise', sharpening: 'Mean Sharpness', median_filter: 'Mean Residue', jpeg_ghost: 'Original Q' }
+  return labels[method.value] || 'Value 1'
+})
+
+const statLabel2 = computed(() => {
+  const labels = { ela: 'Max Error', noise: 'Max Noise', sharpening: 'Max Sharpness', median_filter: 'Max Residue', jpeg_ghost: 'Ghost Q' }
+  return labels[method.value] || 'Value 2'
+})
+
+const statLabel3 = computed(() => {
+  const labels = { ela: 'Area Suspicious', noise: 'Inconsistency', sharpening: 'Area Suspicious', median_filter: 'Inconsistency', jpeg_ghost: 'Double Compress' }
+  return labels[method.value] || 'Suspicious'
+})
+
+const maxQualityError = computed(() => {
+  if (!result.value?.quality_scores) return 1
+  return Math.max(...result.value.quality_scores.map(s => s[1]), 1)
 })
 
 function handleDrag(e) {
@@ -238,7 +258,7 @@ async function loadHistory() {
             <!-- Heatmap Image (dynamic key) -->
             <div class="rounded-xl overflow-hidden border border-gray-200">
               <img
-                :src="'data:image/jpeg;base64,' + (result.ela_image_base64 || result.noise_map_base64 || result.sharpening_map_base64)"
+                :src="'data:image/jpeg;base64,' + (result.ela_image_base64 || result.noise_map_base64 || result.sharpening_map_base64 || result.median_map_base64 || result.ghost_image_base64)"
                 class="w-full h-auto max-h-72 object-contain bg-gray-900"
               />
             </div>
@@ -247,18 +267,18 @@ async function loadHistory() {
             <div class="grid grid-cols-3 gap-3">
               <div class="bg-gray-50 rounded-lg p-3 text-center">
                 <div class="text-2xl font-bold text-gray-900">
-                  {{ result.mean_error ?? result.mean_noise ?? result.mean_sharpness }}
+                  {{ result.mean_error ?? result.mean_noise ?? result.mean_sharpness ?? result.mean_residue ?? (result.original_quality ?? '-') }}
                 </div>
                 <div class="text-xs text-gray-500 mt-1">
-                  {{ method === 'ela' ? 'Mean Error' : method === 'noise' ? 'Mean Noise' : 'Mean Sharpness' }}
+                  {{ statLabel1 }}
                 </div>
               </div>
               <div class="bg-gray-50 rounded-lg p-3 text-center">
                 <div class="text-2xl font-bold text-gray-900">
-                  {{ result.max_error ?? result.max_noise ?? result.max_sharpness }}
+                  {{ result.max_error ?? result.max_noise ?? result.max_sharpness ?? result.max_residue ?? (result.ghost_quality ?? '-') }}
                 </div>
                 <div class="text-xs text-gray-500 mt-1">
-                  {{ method === 'ela' ? 'Max Error' : method === 'noise' ? 'Max Noise' : 'Max Sharpness' }}
+                  {{ statLabel2 }}
                 </div>
               </div>
               <div class="bg-gray-50 rounded-lg p-3 text-center">
@@ -266,8 +286,32 @@ async function loadHistory() {
                   {{ suspiciousPct }}%
                 </div>
                 <div class="text-xs text-gray-500 mt-1">
-                  {{ method === 'noise' ? 'Inconsistency' : 'Area Suspicious' }}
+                  {{ statLabel3 }}
                 </div>
+              </div>
+            </div>
+
+            <!-- JPEG Ghost extra info -->
+            <div v-if="method === 'jpeg_ghost' && result.quality_scores" class="bg-gray-50 rounded-xl p-4">
+              <h3 class="font-semibold text-gray-900 mb-3">Quality-Error Curve</h3>
+              <div class="flex items-end gap-px h-24">
+                <div
+                  v-for="(pair, idx) in result.quality_scores"
+                  :key="idx"
+                  class="flex-1 rounded-t transition-all duration-300"
+                  :class="pair[0] === result.original_quality ? 'bg-primary-500' : pair[0] === result.ghost_quality ? 'bg-red-500' : 'bg-gray-300'"
+                  :style="{ height: (pair[1] / maxQualityError * 100) + '%' }"
+                  :title="'Q' + pair[0] + ': ' + pair[1]"
+                ></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>Q1</span>
+                <span>Q50</span>
+                <span>Q99</span>
+              </div>
+              <div class="flex gap-4 mt-2 text-xs">
+                <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary-500 inline-block"></span> Kualitas Asli ({{ result.original_quality }})</span>
+                <span v-if="result.ghost_quality" class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> Ghost Quality ({{ result.ghost_quality }})</span>
               </div>
             </div>
 
