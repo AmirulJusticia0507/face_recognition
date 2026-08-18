@@ -12,6 +12,9 @@ def face_image_path(instance, filename):
 class Person(models.Model):
     name = models.CharField(max_length=100)
     identifier = models.CharField(max_length=50, unique=True)
+    email = models.EmailField(max_length=255, blank=True, null=True)
+    phone = models.CharField(max_length=30, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -20,6 +23,17 @@ class Person(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.identifier})"
+
+    @property
+    def avatar(self):
+        img = self.face_images.first()
+        if img and img.image:
+            return img.image.url
+        return None
+
+    @property
+    def photo_count(self):
+        return self.face_images.count()
 
     def delete(self, *args, **kwargs):
         for face_image in self.face_images.all():
@@ -110,3 +124,23 @@ class ForensicLog(models.Model):
         if self.image_result:
             self.image_result.delete(save=False)
         super().delete(*args, **kwargs)
+
+
+class ModelSetting(models.Model):
+    default_model = models.CharField(max_length=50, default='ArcFace')
+    similarity_threshold = models.FloatField(default=0.4)
+    detection_backend = models.CharField(max_length=50, default='opencv')
+    enforce_detection = models.BooleanField(default=True)
+    align = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name_plural = 'Model Settings'
+
+    def __str__(self):
+        return f"Model Settings ({self.default_model})"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
