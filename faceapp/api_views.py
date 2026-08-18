@@ -45,7 +45,7 @@ class FlexiblePagination(PageNumberPagination):
     page_size_query_param = 'per_page'
     page_size = 20
 
-    def get_page_size(self, request, queryset):
+    def get_page_size(self, request):
         per_page = request.query_params.get(self.page_size_query_param)
         if per_page:
             try:

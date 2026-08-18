@@ -1,21 +1,137 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { liveCameraApi } from '../services/api'
 import Swal from 'sweetalert2'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
+const CCTV_API = import.meta.env.VITE_API_URL || ''
+const MINIO_URL = import.meta.env.VITE_MINIO_URL || ''
+
+const mapRef = ref(null)
+let map = null
+let markers = []
+
+const cameras = ref([])
+const selectedCamera = ref(null)
+const loading = ref(false)
+const searchQuery = ref('')
+const activeTab = ref('map')
+const streaming = ref(false)
 const videoRef = ref(null)
 const canvasRef = ref(null)
-const streaming = ref(false)
-const loading = ref(false)
-const detectedExpression = ref('')
 const snapshots = ref([])
 const showSnapshots = ref(false)
 let stream = null
-let detectionInterval = null
 
-const startCamera = async () => {
+const jogjaCenter = [-7.7956, 110.3695]
+
+const defaultCameras = [
+  { id: 1, name: 'Titik Nol Kilometer', lat: -7.7928, lng: 110.3659, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/nolkm' },
+  { id: 2, name: 'Malioboro Utara', lat: -7.7937, lng: 110.3652, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/malioboro-utara' },
+  { id: 3, name: 'Malioboro Tengah', lat: -7.7956, lng: 110.3650, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/malioboro-tengah' },
+  { id: 4, name: 'Malioboro Selatan', lat: -7.7975, lng: 110.3648, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/malioboro-selatan' },
+  { id: 5, name: 'Alun-Alun Kidul', lat: -7.8060, lng: 110.3638, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/alun-alun-selatan' },
+  { id: 6, name: 'Bundaran UGM', lat: -7.7623, lng: 110.3797, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/ugm' },
+  { id: 7, name: 'Simpang Prambanan', lat: -7.7476, lng: 110.4341, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/prambanan' },
+  { id: 8, name: 'Pantai Parangtritis', lat: -8.0278, lng: 110.3307, source: 'bantul', stream: 'https://bantulkab.go.id/cctv/stream/parangtritis' },
+  { id: 9, name: 'Candi Ratu Boko', lat: -7.7716, lng: 110.4504, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/ratuboko' },
+  { id: 10, name: 'Gunung Merapi (Klangon)', lat: -7.5395, lng: 110.4008, source: 'sleman', stream: 'https://24jam.slemankab.go.id/stream/merapi-klangon' },
+  { id: 11, name: 'Kebun Buah Mangunan', lat: -7.9877, lng: 110.3673, source: 'bantul', stream: 'https://bantulkab.go.id/cctv/stream/mangunan' },
+  { id: 12, name: 'Tugu Jogja', lat: -7.7895, lng: 110.3633, source: 'jogjakota', stream: 'https://cctv.jogjakota.go.id/stream/tugu' },
+]
+
+const filteredCameras = ref(defaultCameras)
+
+const fetchCameras = async () => {
+  loading.value = true
   try {
-    loading.value = true
+    const response = await fetch(CCTV_API + 'api/devices/', {
+      headers: { 'Accept': 'application/json' }
+    })
+    if (response.ok) {
+      const data = await response.json()
+      const apiCameras = (data.results || data).map((cam, i) => ({
+        id: cam.id || i + 100,
+        name: cam.name || cam.location || `Camera ${i + 1}`,
+        lat: parseFloat(cam.lat || cam.latitude || jogjaCenter[0]),
+        lng: parseFloat(cam.lng || cam.longitude || jogjaCenter[1]),
+        source: cam.source || 'ai-cctv',
+        stream: cam.stream_url || cam.stream || '',
+        status: cam.status || 'unknown',
+      }))
+      if (apiCameras.length > 0) {
+        defaultCameras.push(...apiCameras)
+      }
+    }
+  } catch (err) {
+    console.warn('CCTV API not available, using default cameras')
+  } finally {
+    loading.value = false
+    filteredCameras.value = [...defaultCameras]
+    loading.value = false
+  }
+}
+
+const initMap = async () => {
+  await nextTick()
+  if (!mapRef.value || map) return
+
+  map = L.map(mapRef.value, {
+    zoomControl: true,
+    attributionControl: true,
+  }).setView(jogjaCenter, 12)
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 18,
+  }).addTo(map)
+
+  addMarkers(filteredCameras.value)
+}
+
+const addMarkers = (cams) => {
+  if (!map) return
+  markers.forEach(m => map.removeLayer(m))
+  markers = []
+
+  cams.forEach(cam => {
+    const icon = L.divIcon({
+      className: 'custom-marker',
+      html: `<div class="w-6 h-6 bg-primary-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center">
+        <svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/></svg>
+      </div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    })
+
+    const marker = L.marker([cam.lat, cam.lng], { icon })
+      .addTo(map)
+      .bindPopup(`<strong>${cam.name}</strong><br><small>${cam.source}</small>`)
+      .on('click', () => selectCamera(cam))
+
+    markers.push(marker)
+  })
+}
+
+const selectCamera = (cam) => {
+  selectedCamera.value = cam
+  activeTab.value = 'stream'
+  if (map) {
+    map.setView([cam.lat, cam.lng], 15)
+  }
+}
+
+const filterCameras = () => {
+  const q = searchQuery.value.toLowerCase()
+  filteredCameras.value = defaultCameras.filter(c =>
+    c.name.toLowerCase().includes(q) || c.source.toLowerCase().includes(q)
+  )
+  addMarkers(filteredCameras.value)
+}
+
+const startLocalCamera = async () => {
+  try {
     stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } })
     if (videoRef.value) {
       videoRef.value.srcObject = stream
@@ -24,43 +140,34 @@ const startCamera = async () => {
     }
   } catch (err) {
     Swal.fire('Error', 'Cannot access camera: ' + err.message, 'error')
-  } finally {
-    loading.value = false
   }
 }
 
-const stopCamera = () => {
+const stopLocalCamera = () => {
   if (stream) {
-    stream.getTracks().forEach(track => track.stop())
+    stream.getTracks().forEach(t => t.stop())
     stream = null
   }
-  if (detectionInterval) {
-    clearInterval(detectionInterval)
-    detectionInterval = null
-  }
   streaming.value = false
-  detectedExpression.value = ''
 }
 
 const captureFrame = () => {
   if (!videoRef.value || !canvasRef.value) return null
-  const video = videoRef.value
-  const canvas = canvasRef.value
-  canvas.width = video.videoWidth
-  canvas.height = video.videoHeight
-  const ctx = canvas.getContext('2d')
-  ctx.drawImage(video, 0, 0)
-  return canvas.toDataURL('image/jpeg', 0.8)
+  const v = videoRef.value
+  const c = canvasRef.value
+  c.width = v.videoWidth
+  c.height = v.videoHeight
+  c.getContext('2d').drawImage(v, 0, 0)
+  return c.toDataURL('image/jpeg', 0.8)
 }
 
 const saveSnapshot = async () => {
   const imageData = captureFrame()
   if (!imageData) return
-  
   try {
     await liveCameraApi.saveSnapshot({
       image_base64: imageData,
-      detected_expression: detectedExpression.value,
+      camera_name: selectedCamera.value?.name || 'Local Camera',
     })
     Swal.fire({ icon: 'success', title: 'Snapshot saved', timer: 1500, showConfirmButton: false })
   } catch (error) {
@@ -84,12 +191,19 @@ const deleteSnapshot = async (id) => {
     snapshots.value = snapshots.value.filter(s => s.id !== id)
     Swal.fire({ icon: 'success', title: 'Deleted', timer: 1500, showConfirmButton: false })
   } catch (error) {
-    Swal.fire('Error', 'Failed to delete snapshot', 'error')
+    Swal.fire('Error', 'Failed to delete', 'error')
   }
 }
 
+onMounted(async () => {
+  await fetchCameras()
+  await initMap()
+  setTimeout(() => { if (map) map.invalidateSize() }, 300)
+})
+
 onBeforeUnmount(() => {
-  stopCamera()
+  stopLocalCamera()
+  if (map) { map.remove(); map = null }
 })
 </script>
 
@@ -97,108 +211,166 @@ onBeforeUnmount(() => {
   <div class="space-y-6">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-900">Live Camera</h1>
-        <p class="text-gray-500 mt-1">Real-time face detection and snapshot capture</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-dark-100">Live Camera CCTV</h1>
+        <p class="text-gray-500 dark:text-dark-400 mt-1">Pantau CCTV real-time DIY & face detection</p>
       </div>
-      <button @click="loadSnapshots" class="btn-secondary">View Snapshots</button>
+      <div class="flex gap-2">
+        <button @click="loadSnapshots" class="btn-secondary">Snapshots</button>
+        <button v-if="streaming" @click="saveSnapshot" class="btn-primary">Capture</button>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Camera Feed -->
-      <div class="lg:col-span-2 card">
-        <div class="card-header flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">Camera Feed</h2>
-          <div class="flex items-center gap-2">
-            <span v-if="streaming" class="flex items-center gap-2 text-sm text-green-600">
-              <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-              Live
-            </span>
-            <span v-else class="text-sm text-gray-500">Offline</span>
+      <!-- Left: Map + Stream -->
+      <div class="lg:col-span-2 space-y-4">
+        <!-- Tab Switcher -->
+        <div class="flex gap-1 p-1 bg-gray-100 dark:bg-dark-800 rounded-lg">
+          <button
+            @click="activeTab = 'map'"
+            :class="['flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all',
+              activeTab === 'map' ? 'bg-white dark:bg-dark-700 text-primary-600 shadow-sm' : 'text-gray-600 dark:text-dark-400']"
+          >
+            Peta CCTV
+          </button>
+          <button
+            @click="activeTab = 'stream'"
+            :class="['flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all',
+              activeTab === 'stream' ? 'bg-white dark:bg-dark-700 text-primary-600 shadow-sm' : 'text-gray-600 dark:text-dark-400']"
+          >
+            Live Stream
+          </button>
+          <button
+            @click="activeTab = 'local'"
+            :class="['flex-1 px-4 py-2 text-sm font-medium rounded-md transition-all',
+              activeTab === 'local' ? 'bg-white dark:bg-dark-700 text-primary-600 shadow-sm' : 'text-gray-600 dark:text-dark-400']"
+          >
+            Lokal Camera
+          </button>
+        </div>
+
+        <!-- Map View -->
+        <div v-show="activeTab === 'map'" class="card overflow-hidden">
+          <div ref="mapRef" class="w-full h-[500px] bg-gray-200 dark:bg-dark-700"></div>
+        </div>
+
+        <!-- Stream View -->
+        <div v-show="activeTab === 'stream'" class="card">
+          <div class="card-body">
+            <div v-if="selectedCamera" class="space-y-4">
+              <div class="flex items-center gap-3 mb-4">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                <h3 class="font-semibold text-gray-900 dark:text-dark-100">{{ selectedCamera.name }}</h3>
+                <span class="badge-info text-xs">{{ selectedCamera.source }}</span>
+              </div>
+              <div class="relative bg-black rounded-lg overflow-hidden aspect-video">
+                <iframe
+                  v-if="selectedCamera.stream"
+                  :src="selectedCamera.stream"
+                  class="w-full h-full"
+                  frameborder="0"
+                  allowfullscreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
+                ></iframe>
+                <div v-else class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                  <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <p>Stream tidak tersedia</p>
+                  <p class="text-sm mt-1">Klik marker di peta atau pilih kamera lain</p>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <div class="p-3 bg-gray-50 dark:bg-dark-800 rounded-lg">
+                  <span class="text-gray-500 dark:text-dark-400">Lokasi</span>
+                  <p class="font-medium text-gray-900 dark:text-dark-100">{{ selectedCamera.lat.toFixed(4) }}, {{ selectedCamera.lng.toFixed(4) }}</p>
+                </div>
+                <div class="p-3 bg-gray-50 dark:bg-dark-800 rounded-lg">
+                  <span class="text-gray-500 dark:text-dark-400">Sumber</span>
+                  <p class="font-medium text-gray-900 dark:text-dark-100">{{ selectedCamera.source }}</p>
+                </div>
+              </div>
+            </div>
+            <div v-else class="flex flex-col items-center justify-center py-20 text-gray-400">
+              <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <p>Pilih kamera dari daftar atau peta</p>
+            </div>
           </div>
         </div>
-        <div class="card-body">
-          <div class="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
-            <video
-              ref="videoRef"
-              class="w-full h-full object-cover"
-              :class="{ 'hidden': !streaming }"
-              autoplay
-              playsinline
-              muted
-            ></video>
-            <canvas ref="canvasRef" class="hidden"></canvas>
-            <div v-if="!streaming" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-              <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              </svg>
-              <p>Camera feed will appear here</p>
-            </div>
-          </div>
 
-          <!-- Controls -->
-          <div class="flex flex-wrap items-center justify-between gap-4 mt-4 pt-4 border-t border-gray-100">
-            <div class="flex items-center gap-3">
-              <button
-                v-if="!streaming"
-                @click="startCamera"
-                :disabled="loading"
-                class="btn-success"
-              >
-                <span v-if="loading" class="flex items-center gap-2">
-                  <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                  Starting...
-                </span>
-                <span v-else>Start Camera</span>
-              </button>
-              <button v-else @click="stopCamera" class="btn-danger">Stop Camera</button>
-              <button v-if="streaming" @click="saveSnapshot" class="btn-primary">
-                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>
-                Snapshot
-              </button>
+        <!-- Local Camera View -->
+        <div v-show="activeTab === 'local'" class="card">
+          <div class="card-body">
+            <div class="relative bg-gray-900 rounded-lg overflow-hidden aspect-video">
+              <video ref="videoRef" class="w-full h-full object-cover" :class="{ hidden: !streaming }" autoplay playsinline muted></video>
+              <canvas ref="canvasRef" class="hidden"></canvas>
+              <div v-if="!streaming" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
+                <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                </svg>
+                <p>Camera lokal</p>
+              </div>
             </div>
-            <div v-if="detectedExpression" class="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
-              Expression: <strong>{{ detectedExpression }}</strong>
+            <div class="flex gap-3 mt-4">
+              <button v-if="!streaming" @click="startLocalCamera" class="btn-success">Start Camera</button>
+              <button v-else @click="stopLocalCamera" class="btn-danger">Stop Camera</button>
+              <button v-if="streaming" @click="saveSnapshot" class="btn-primary">Snapshot</button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Info Panel -->
-      <div class="card">
+      <!-- Right: Camera List -->
+      <div class="card flex flex-col max-h-[700px]">
         <div class="card-header">
-          <h2 class="text-lg font-semibold text-gray-900">Information</h2>
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-100">Daftar Kamera</h2>
+            <span class="badge-info">{{ filteredCameras.length }}</span>
+          </div>
+          <div class="mt-3">
+            <input
+              v-model="searchQuery"
+              @input="filterCameras"
+              type="text"
+              placeholder="Cari lokasi..."
+              class="input text-sm"
+            />
+          </div>
         </div>
-        <div class="card-body space-y-4">
-          <div class="p-4 bg-blue-50 rounded-lg">
-            <h3 class="font-medium text-blue-900">How it works</h3>
-            <ul class="text-sm text-blue-700 mt-2 space-y-1">
-              <li>1. Click "Start Camera" to begin</li>
-              <li>2. Position your face in the frame</li>
-              <li>3. Click "Snapshot" to capture</li>
-              <li>4. View saved snapshots above</li>
-            </ul>
+        <div class="flex-1 overflow-y-auto">
+          <div v-if="loading" class="p-6 text-center text-gray-500">
+            <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-primary-600" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+            <p>Memuat kamera...</p>
           </div>
-
-          <div class="space-y-3">
-            <h3 class="font-medium text-gray-900">Settings</h3>
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span class="text-sm text-gray-600">Resolution</span>
-              <span class="text-sm font-medium text-gray-900">640x480</span>
-            </div>
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span class="text-sm text-gray-600">Quality</span>
-              <span class="text-sm font-medium text-gray-900">80%</span>
-            </div>
+          <div v-else-if="filteredCameras.length === 0" class="p-6 text-center text-gray-500">
+            Tidak ada kamera ditemukan
           </div>
-
-          <div class="p-4 bg-yellow-50 rounded-lg">
-            <h3 class="font-medium text-yellow-900">Tips</h3>
-            <ul class="text-sm text-yellow-700 mt-2 space-y-1">
-              <li>- Ensure good lighting</li>
-              <li>- Face the camera directly</li>
-              <li>- Avoid wearing sunglasses</li>
-              <li>- Keep a neutral expression</li>
-            </ul>
+          <div v-else>
+            <button
+              v-for="cam in filteredCameras"
+              :key="cam.id"
+              @click="selectCamera(cam)"
+              :class="[
+                'w-full text-left px-4 py-3 border-b border-gray-100 dark:border-dark-700 hover:bg-gray-50 dark:hover:bg-dark-800 transition-colors',
+                selectedCamera?.id === cam.id ? 'bg-primary-50 dark:bg-primary-900/20 border-l-2 border-l-primary-600' : ''
+              ]"
+            >
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-900 dark:text-dark-100 truncate">{{ cam.name }}</p>
+                  <p class="text-xs text-gray-500 dark:text-dark-400">{{ cam.source }}</p>
+                </div>
+                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
           </div>
         </div>
       </div>
@@ -207,10 +379,10 @@ onBeforeUnmount(() => {
     <!-- Snapshots Modal -->
     <div v-if="showSnapshots" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50" @click="showSnapshots = false"></div>
-      <div class="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col animate-fade-in">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h3 class="text-lg font-semibold text-gray-900">Saved Snapshots</h3>
-          <button @click="showSnapshots = false" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100">
+      <div class="relative bg-white dark:bg-dark-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-dark-700">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-dark-100">Saved Snapshots</h3>
+          <button @click="showSnapshots = false" class="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-dark-700">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -220,13 +392,13 @@ onBeforeUnmount(() => {
           </div>
           <div v-else class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             <div v-for="snap in snapshots" :key="snap.id" class="relative group">
-              <img :src="snap.foto_a" alt="Snapshot" class="w-full aspect-square object-cover rounded-lg border border-gray-200" />
-              <div class="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+              <img :src="snap.foto_a" alt="Snapshot" class="w-full aspect-square object-cover rounded-lg border border-gray-200 dark:border-dark-600" />
+              <div class="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <button @click="deleteSnapshot(snap.id)" class="p-2 bg-red-500 rounded-full text-white hover:bg-red-600">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                 </button>
               </div>
-              <p class="text-xs text-gray-500 mt-1">{{ snap.created_at ? new Date(snap.created_at).toLocaleString() : '' }}</p>
+              <p class="text-xs text-gray-500 dark:text-dark-400 mt-1">{{ snap.created_at ? new Date(snap.created_at).toLocaleString() : '' }}</p>
             </div>
           </div>
         </div>
@@ -234,3 +406,10 @@ onBeforeUnmount(() => {
     </div>
   </div>
 </template>
+
+<style>
+.custom-marker {
+  background: transparent !important;
+  border: none !important;
+}
+</style>

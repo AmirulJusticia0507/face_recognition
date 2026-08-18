@@ -148,4 +148,24 @@ export const forensicApi = {
   getHistory: (params) => api.get('/forensic/ela/', { params }),
 }
 
+// CCTV AI-CCTV API (external Jogja Smart Province)
+const cctvApi = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '',
+  headers: { 'Content-Type': 'application/json' },
+  timeout: 15000,
+})
+
+cctvApi.interceptors.request.use((config) => {
+  const ssoToken = localStorage.getItem('access_token')
+  if (ssoToken) config.headers.Authorization = `Bearer ${ssoToken}`
+  return config
+})
+
+export const cctvService = {
+  getDevices: (params) => cctvApi.get('/api/devices/', { params }),
+  getDevice: (id) => cctvApi.get(`/api/devices/${id}/`),
+  getCounting: (params) => cctvApi.get('/api/counting/', { params }),
+  getEmbedUrl: (id) => `${import.meta.env.VITE_API_URL || ''}/embed?device=${id}`,
+}
+
 export default api
