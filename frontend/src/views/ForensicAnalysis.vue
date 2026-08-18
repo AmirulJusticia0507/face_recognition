@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { push } from 'notivue'
 import { forensicApi } from '../services/api'
 
@@ -14,13 +14,20 @@ const showHistory = ref(false)
 
 const methods = [
   { id: 'ela', name: 'ELA', desc: 'Error Level Analysis', available: true },
-  { id: 'noise', name: 'Noise', desc: 'Analisis Derau', available: false },
-  { id: 'sharpening', name: 'Sharpening', desc: 'Deteksi Ketajaman', available: false },
+  { id: 'noise', name: 'Noise', desc: 'Analisis Derau', available: true },
+  { id: 'sharpening', name: 'Sharpening', desc: 'Deteksi Ketajaman', available: true },
   { id: 'median_filter', name: 'Median', desc: 'Median Filter Det.', available: false },
   { id: 'copy_move', name: 'Copy-Move', desc: 'Deteksi Copy-Move', available: false },
   { id: 'jpeg_ghost', name: 'JPEG Ghost', desc: 'JPEG Ghost Det.', available: false },
   { id: 'metadata', name: 'Metadata', desc: 'Metadata Forensics', available: false },
 ]
+
+const currentMethod = computed(() => methods.find(m => m.id === method.value))
+
+const suspiciousPct = computed(() => {
+  if (!result.value) return 0
+  return result.value.suspicious_pct ?? result.value.inconsistency_pct ?? 0
+})
 
 function handleDrag(e) {
   e.preventDefault()
@@ -73,7 +80,7 @@ async function analyze() {
 
     const res = await forensicApi.analyze(formData)
     result.value = res.data
-    push.success({ title: 'Analisis selesai', message: `ELA analysis berhasil.` })
+    push.success({ title: 'Analisis selesai', message: `${currentMethod.value.name} analysis berhasil.` })
   } catch (err) {
     push.error({ title: 'Gagal', message: err.response?.data?.error || 'Terjadi kesalahan saat analisis.' })
   } finally {
@@ -189,7 +196,7 @@ async function loadHistory() {
               <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
-              {{ analyzing ? 'Menganalisis...' : 'Analisis ELA' }}
+              {{ analyzing ? 'Menganalisis...' : 'Analisis ' + currentMethod.name }}
             </button>
           </div>
 
@@ -224,30 +231,43 @@ async function loadHistory() {
               </svg>
               <span class="text-lg font-medium">Sedang menganalisis...</span>
             </div>
-            <p class="text-gray-400 text-sm mt-2">Memproses gambar dengan Error Level Analysis</p>
+            <p class="text-gray-400 text-sm mt-2">Memproses gambar dengan {{ currentMethod.name }}</p>
           </div>
 
           <div v-if="result && !analyzing" class="space-y-5">
-            <!-- ELA Image -->
-            <div v-if="result.ela_image_base64" class="rounded-xl overflow-hidden border border-gray-200">
-              <img :src="'data:image/jpeg;base64,' + result.ela_image_base64" class="w-full h-auto max-h-72 object-contain bg-gray-900" />
+            <!-- Heatmap Image (dynamic key) -->
+            <div class="rounded-xl overflow-hidden border border-gray-200">
+              <img
+                :src="'data:image/jpeg;base64,' + (result.ela_image_base64 || result.noise_map_base64 || result.sharpening_map_base64)"
+                class="w-full h-auto max-h-72 object-contain bg-gray-900"
+              />
             </div>
 
             <!-- Statistics Grid -->
             <div class="grid grid-cols-3 gap-3">
               <div class="bg-gray-50 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold text-gray-900">{{ result.mean_error }}</div>
-                <div class="text-xs text-gray-500 mt-1">Mean Error</div>
-              </div>
-              <div class="bg-gray-50 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold text-gray-900">{{ result.max_error }}</div>
-                <div class="text-xs text-gray-500 mt-1">Max Error</div>
-              </div>
-              <div class="bg-gray-50 rounded-lg p-3 text-center">
-                <div class="text-2xl font-bold" :class="result.suspicious_pct > 5 ? 'text-red-600' : result.suspicious_pct > 1 ? 'text-yellow-600' : 'text-green-600'">
-                  {{ result.suspicious_pct }}%
+                <div class="text-2xl font-bold text-gray-900">
+                  {{ result.mean_error ?? result.mean_noise ?? result.mean_sharpness }}
                 </div>
-                <div class="text-xs text-gray-500 mt-1">Area Suspicious</div>
+                <div class="text-xs text-gray-500 mt-1">
+                  {{ method === 'ela' ? 'Mean Error' : method === 'noise' ? 'Mean Noise' : 'Mean Sharpness' }}
+                </div>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-3 text-center">
+                <div class="text-2xl font-bold text-gray-900">
+                  {{ result.max_error ?? result.max_noise ?? result.max_sharpness }}
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                  {{ method === 'ela' ? 'Max Error' : method === 'noise' ? 'Max Noise' : 'Max Sharpness' }}
+                </div>
+              </div>
+              <div class="bg-gray-50 rounded-lg p-3 text-center">
+                <div class="text-2xl font-bold" :class="suspiciousPct > 5 ? 'text-red-600' : suspiciousPct > 1 ? 'text-yellow-600' : 'text-green-600'">
+                  {{ suspiciousPct }}%
+                </div>
+                <div class="text-xs text-gray-500 mt-1">
+                  {{ method === 'noise' ? 'Inconsistency' : 'Area Suspicious' }}
+                </div>
               </div>
             </div>
 
@@ -262,22 +282,22 @@ async function loadHistory() {
               <p class="text-sm text-gray-700 leading-relaxed" v-html="result.analysis.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')"></p>
             </div>
 
-            <!-- Suspicious Area Bar -->
+            <!-- Suspicion Level Bar -->
             <div>
               <div class="flex items-center justify-between text-sm mb-1">
                 <span class="text-gray-600">Tingkat Kecurigaan</span>
                 <span
                   class="font-semibold"
-                  :class="result.suspicious_pct > 20 ? 'text-red-600' : result.suspicious_pct > 5 ? 'text-yellow-600' : 'text-green-600'"
+                  :class="suspiciousPct > 20 ? 'text-red-600' : suspiciousPct > 5 ? 'text-yellow-600' : 'text-green-600'"
                 >
-                  {{ result.suspicious_pct > 20 ? 'Tinggi' : result.suspicious_pct > 5 ? 'Sedang' : 'Rendah' }}
+                  {{ suspiciousPct > 20 ? 'Tinggi' : suspiciousPct > 5 ? 'Sedang' : 'Rendah' }}
                 </span>
               </div>
               <div class="w-full bg-gray-200 rounded-full h-2.5">
                 <div
                   class="h-2.5 rounded-full transition-all duration-500"
-                  :class="result.suspicious_pct > 20 ? 'bg-red-500' : result.suspicious_pct > 5 ? 'bg-yellow-500' : 'bg-green-500'"
-                  :style="{ width: Math.min(result.suspicious_pct, 100) + '%' }"
+                  :class="suspiciousPct > 20 ? 'bg-red-500' : suspiciousPct > 5 ? 'bg-yellow-500' : 'bg-green-500'"
+                  :style="{ width: Math.min(suspiciousPct, 100) + '%' }"
                 ></div>
               </div>
             </div>

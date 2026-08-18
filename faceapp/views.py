@@ -22,7 +22,7 @@ from .models import FaceLog, FaceComparisonLog, ViolationLog, Person, ForensicLo
 from .forms import PersonForm
 from .serializers import FaceComparisonLogSerializer
 from . import face_services
-from .forensics import analyze_ela
+from .forensics import analyze_ela, analyze_noise, analyze_sharpening
 from deepface import DeepFace
 
 # Dummy pose score function
@@ -267,6 +267,10 @@ class ForensicAnalysisView(APIView):
         try:
             if method == 'ela':
                 result = analyze_ela(filepath)
+            elif method == 'noise':
+                result = analyze_noise(filepath)
+            elif method == 'sharpening':
+                result = analyze_sharpening(filepath)
             else:
                 return Response({'error': f'Metode "{method}" belum tersedia.'}, status=400)
 
