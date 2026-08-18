@@ -921,6 +921,31 @@ class ViolationLogsStatsView(APIView):
         })
 
 
+class ViolationLogsExportCSVView(APIView):
+    def get(self, request):
+        import csv
+        import io
+        from django.http import HttpResponse
+
+        queryset = ViolationLog.objects.all().order_by('-violation_time')
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="violation_logs.csv"'
+        writer = csv.writer(response)
+        writer.writerow(['ID', 'Plat Nomor', 'Waktu', 'Jenis', 'Kamera', 'Deskripsi', 'Status', 'Grafi'])
+        for log in queryset:
+            writer.writerow([
+                log.id,
+                log.plate_number,
+                log.violation_time.strftime('%Y-%m-%d %H:%M:%S') if log.violation_time else '',
+                log.violation_type,
+                log.camera_name or '',
+                log.description or '',
+                log.status,
+                log.fine_amount or '',
+            ])
+        return response
+
+
 class ForensicAnalysisAPIView(APIView):
     parser_classes = [MultiPartParser]
 

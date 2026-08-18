@@ -7,6 +7,7 @@ from .api_views import (
     JogjaCCTVListView,
     CameraListCreateView,
     CameraRetrieveUpdateDestroyView,
+    ViolationLogsExportCSVView,
 )
 
 urlpatterns = [
@@ -29,4 +30,5 @@ urlpatterns = [
     path('people/<int:pk>/delete/', delete_person, name='delete_person'),
     path('identify/', identify, name='identify'),
     path('forensic/ela/', ForensicAnalysisView.as_view(), name='forensic-ela'),
+    path('violation-logs/export-csv/', ViolationLogsExportCSVView.as_view(), name='violation-logs-export-csv'),
 ]
