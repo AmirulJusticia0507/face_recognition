@@ -14,8 +14,9 @@ pymysql==1.1.1
 # ─── Face Recognition ─────────────────────────────────────────────────────────
 # deepface pulls tensorflow; pin to avoid pulling full GPU torch build
 deepface==0.0.93
-# Use CPU-only torch to dramatically reduce bundle size (~200MB vs 800MB)
-torch==2.2.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+# torch CPU-only — install via: pip install -r requirements.txt -r requirements-torch.txt
+# atau: pip install torch==2.2.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2
 tensorflow-cpu==2.16.2
 tf-keras==2.16.0
 opencv-python-headless==4.10.0.84
