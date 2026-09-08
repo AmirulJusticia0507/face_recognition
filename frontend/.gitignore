@@ -2,3 +2,7 @@ node_modules
 dist
 .DS_Store
 *.local
+
+# Local override env files (jangan commit secret production)
+.env.production.local
+.env.local

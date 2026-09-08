@@ -1,7 +1,13 @@
 import axios from 'axios'
 
+// Production: VITE_BACKEND_URL=https://your-app.railway.app
+// Development: proxy via vite.config.js ke localhost:8000 (VITE_BACKEND_URL tidak perlu diset)
+const baseURL = import.meta.env.VITE_BACKEND_URL
+  ? `${import.meta.env.VITE_BACKEND_URL}/api`
+  : '/api'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -18,3 +18,17 @@ media/face_db/
 
 # Logs
 *.log
+
+# Media uploads — tidak commit ke repo
+media/faces/
+media/snapshots/
+media/pose_snapshots/
+media/violations/
+media/forensic/
+media/tmp_test.jpg
+
+# Virtual environments
+.venv/
+
+# IDE
+.vscode/
