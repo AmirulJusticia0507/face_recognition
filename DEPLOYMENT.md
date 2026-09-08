@@ -4,7 +4,25 @@ Arsitektur deployment split:
 - **Frontend (Vue 3)** → Vercel (static hosting)
 - **Backend (Django)** → Railway (persistent container)
 - **Database** → Railway MySQL plugin
-- **Media Storage** → (opsional) Cloudflare R2 / AWS S3
+- **Media Storage** → Cloudflare R2 / AWS S3 (**wajib** — Railway filesystem ephemeral)
+
+---
+
+## Status Kesiapan Repo
+
+| Komponen | Status | Keterangan |
+|---|---|---|
+| `Procfile` | ✅ Siap | gunicorn entry point |
+| `railway.toml` | ✅ Siap | build + start command |
+| `runtime.txt` / `.python-version` | ✅ Siap | Python 3.11 |
+| `requirements.txt` | ✅ Siap | cpu-only torch, pinned versions |
+| `core/settings.py` | ✅ Siap | baca env vars untuk DB, SECRET_KEY, CORS |
+| `frontend/vercel.json` | ✅ Siap | SPA rewrite rules |
+| `frontend/vite.config.js` | ✅ Siap | proxy via `VITE_BACKEND_URL` |
+| `frontend/src/services/api.js` | ✅ Siap | absolute URL ke Railway jika env set |
+| **`django-storages` + S3 config** | ❌ Belum | **wajib** sebelum deploy ke Railway |
+
+> **Satu-satunya yang masih kurang:** media storage. Tanpa ini foto wajah hilang saat Railway restart.
 
 ---
 
@@ -12,6 +30,7 @@ Arsitektur deployment split:
 
 - Akun [Railway](https://railway.app)
 - Akun [Vercel](https://vercel.com)
+- Akun [Cloudflare](https://cloudflare.com) (untuk R2 storage — gratis)
 - Repo sudah di-push ke GitHub
 
 ---
@@ -111,62 +130,91 @@ Ini dibutuhkan agar CORS backend hanya menerima request dari domain frontend.
 
 ---
 
-## 3. Setup Media Storage (Wajib untuk Production)
+## 3. Setup Media Storage (Wajib — Lakukan Sebelum Deploy)
 
-> **Masalah:** Railway menggunakan ephemeral filesystem — semua file yang diupload (foto wajah, forensik, snapshot) **akan hilang** saat redeploy atau restart.
+> **Masalah:** Railway menggunakan ephemeral filesystem — semua file yang diupload (foto wajah, forensik, snapshot) **akan hilang** saat redeploy atau restart. Ini bukan opsional untuk sistem face recognition.
 
 ### Pilihan Storage
 
 | Pilihan | Harga | Kemudahan |
 |---|---|---|
-| **Cloudflare R2** | Free 10GB/bulan | ⭐⭐⭐ |
-| **AWS S3** | ~$0.023/GB | ⭐⭐ |
+| **Cloudflare R2** | Free 10GB/bulan, $0.015/GB setelahnya | ⭐⭐⭐ Rekomendasi |
 | **Backblaze B2** | Free 10GB | ⭐⭐⭐ |
+| **AWS S3** | ~$0.023/GB | ⭐⭐ |
 
-### 3.1 Setup dengan django-storages + S3-compatible
+### 3.1 Perubahan Kode di Repo (Lakukan Dulu)
 
-Install tambahan (tambahkan ke `requirements.txt`):
+**Langkah 1 — Tambahkan ke `requirements.txt`:**
+
 ```
+# ─── Media Storage ────────────────────────────────────────────────────────────
 django-storages[s3]==1.14.4
 boto3==1.35.0
 ```
 
-Tambahkan ke `core/settings.py`:
+**Langkah 2 — Tambahkan ke `core/settings.py`** (di bagian bawah, setelah `STATIC_ROOT`):
+
 ```python
-# ─── MEDIA STORAGE (S3-compatible) ───────────────────────────────────────────
+# ─── MEDIA STORAGE (S3-compatible: AWS S3 / Cloudflare R2 / Backblaze B2) ────
 if os.environ.get('USE_S3') == 'True':
+    INSTALLED_APPS += ['storages']
+
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
     AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
     AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')  # Untuk R2/B2
-    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'face-recognition-media')
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')   # R2/B2 endpoint
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN') # Public domain R2
     AWS_DEFAULT_ACL = 'public-read'
     AWS_S3_FILE_OVERWRITE = False
-    MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/' if AWS_S3_CUSTOM_DOMAIN else f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
+    AWS_QUERYSTRING_AUTH = False  # URL publik tanpa signature
+
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+    elif AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
+        MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
 ```
 
-Environment variables Railway yang perlu ditambahkan:
-```
-USE_S3=True
-AWS_ACCESS_KEY_ID=...
-AWS_SECRET_ACCESS_KEY=...
-AWS_STORAGE_BUCKET_NAME=face-recognition-media
-AWS_S3_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com  # untuk R2
-AWS_S3_CUSTOM_DOMAIN=pub-xxxx.r2.dev  # public domain R2
+**Langkah 3 — Commit dan push:**
+
+```bash
+git add requirements.txt core/settings.py
+git commit -m "feat: add S3-compatible media storage for Railway deployment"
+git push
 ```
 
-### 3.2 Setup Cloudflare R2 (Rekomendasi)
+Setelah ini, baru lanjut ke setup Cloudflare R2 dan deploy Railway.
 
-1. Login ke [dash.cloudflare.com](https://dash.cloudflare.com) → **R2**
-2. **Create bucket** → nama: `face-recognition-media`
-3. **Settings** → aktifkan **Public access**
-4. **Manage R2 API Tokens** → Create token dengan permission `Object Read & Write`
-5. Catat:
-   - Account ID (dari URL dashboard)
-   - Access Key ID
-   - Secret Access Key
-   - Endpoint: `https://<account_id>.r2.cloudflarestorage.com`
+---
+
+### 3.2 Setup Cloudflare R2
+
+1. Login ke [dash.cloudflare.com](https://dash.cloudflare.com) → **R2 Object Storage**
+2. **Create bucket** → nama: `face-recognition-media` → lokasi: Auto
+3. Di bucket → **Settings** → **Public Access** → **Allow Access** → konfirmasi
+4. Catat **Public Bucket URL** yang muncul, contoh: `https://pub-xxxx.r2.dev`
+5. Kembali ke halaman R2 utama → **Manage R2 API Tokens** → **Create API Token**
+   - Permission: `Object Read & Write`
+   - Scope: `Specific bucket` → pilih `face-recognition-media`
+   - Klik **Create API Token**
+6. Catat semua nilai yang muncul (hanya tampil sekali):
+   - **Access Key ID**
+   - **Secret Access Key**
+   - **Endpoint**: `https://<account_id>.r2.cloudflarestorage.com`
+
+### 3.3 Set Environment Variables R2 di Railway
+
+Di service Django → tab **Variables**, tambahkan:
+
+| Variable | Nilai |
+|---|---|
+| `USE_S3` | `True` |
+| `AWS_ACCESS_KEY_ID` | Access Key ID dari R2 |
+| `AWS_SECRET_ACCESS_KEY` | Secret Access Key dari R2 |
+| `AWS_STORAGE_BUCKET_NAME` | `face-recognition-media` |
+| `AWS_S3_ENDPOINT_URL` | `https://<account_id>.r2.cloudflarestorage.com` |
+| `AWS_S3_CUSTOM_DOMAIN` | `pub-xxxx.r2.dev` (dari langkah 3.2 poin 4) |
 
 ---
 
@@ -215,36 +263,47 @@ VITE_MAPBOX_ACCESS_TOKEN=pk.eyJ1...
 
 ## 5. Checklist Deployment
 
-### Backend Railway
+> Urutan pengerjaan yang benar: **Kode dulu → Railway → Vercel → Update CORS**
+
+### Langkah 0 — Persiapan Kode (Lakukan Sekarang)
+- [ ] Tambah `django-storages[s3]==1.14.4` dan `boto3==1.35.0` ke `requirements.txt`
+- [ ] Tambah blok S3 storage config ke `core/settings.py` (lihat section 3.1)
+- [ ] Commit dan push ke GitHub
+
+### Langkah 1 — Setup Cloudflare R2
+- [ ] Bucket `face-recognition-media` dibuat
+- [ ] Public access diaktifkan
+- [ ] API Token dibuat (Object Read & Write)
+- [ ] Access Key ID, Secret Key, Endpoint, Public Domain dicatat
+
+### Langkah 2 — Deploy Backend Railway
 - [ ] Project dibuat dari GitHub repo
-- [ ] MySQL plugin ditambahkan
+- [ ] MySQL plugin ditambahkan dan terhubung
 - [ ] `SECRET_KEY` diset (bukan default insecure key)
 - [ ] `DEBUG=False` diset
+- [ ] R2 env vars diset (`USE_S3`, `AWS_*`)
+- [ ] `FRONTEND_URL` diisi sementara (update setelah Vercel)
 - [ ] Build berhasil (cek logs Railway)
-- [ ] `python manage.py migrate` berjalan (via buildCommand)
-- [ ] Superuser dibuat via Railway Shell
-- [ ] URL Railway dicatat untuk Vercel
+- [ ] Migrasi berjalan otomatis
+- [ ] Superuser dibuat via Railway Shell: `python manage.py createsuperuser`
+- [ ] URL Railway dicatat
 
-### Frontend Vercel
+### Langkah 3 — Deploy Frontend Vercel
 - [ ] Root Directory diset ke `frontend`
 - [ ] `VITE_BACKEND_URL` diset ke URL Railway
 - [ ] Build berhasil
-- [ ] Login page bisa diakses
-- [ ] API calls berhasil (Network tab browser)
+- [ ] URL Vercel dicatat
 
-### Media Storage
-- [ ] R2/S3 bucket dibuat
-- [ ] Public access diaktifkan
-- [ ] `django-storages` dan `boto3` ditambahkan ke `requirements.txt`
-- [ ] Settings `USE_S3=True` dan credentials diset di Railway
-- [ ] Upload foto wajah berfungsi dan accessible via URL
-
-### Post-Deploy
+### Langkah 4 — Update CORS
 - [ ] `FRONTEND_URL` di Railway diupdate ke URL Vercel yang sebenarnya
-- [ ] CORS tidak error di browser (Network tab)
-- [ ] Login dengan local auth berhasil
+- [ ] Railway redeploy otomatis (atau trigger manual)
+
+### Verifikasi Akhir
+- [ ] Login berhasil (Network tab: POST `/api/auth/login/` → 200)
+- [ ] CORS tidak error di browser console
+- [ ] Upload foto wajah berhasil dan foto tampil (bukan broken image)
 - [ ] Face comparison berfungsi
-- [ ] Media file bisa diakses setelah upload
+- [ ] Dashboard chart tampil data
 
 ---
 
@@ -257,17 +316,24 @@ Pastikan `FRONTEND_URL` di Railway sudah diset dan sama persis dengan URL Vercel
 Cek Railway logs. Kemungkinan `SECRET_KEY` belum diset atau database belum terhubung.
 
 ### Media tidak muncul setelah upload
-Jika belum setup S3: file disimpan di container Railway yang ephemeral. Setup R2/S3 dulu.
-Jika sudah setup S3: cek `AWS_S3_CUSTOM_DOMAIN` dan pastikan bucket public access aktif.
+- **Jika `USE_S3` belum diset:** file disimpan di filesystem Railway yang ephemeral — setup R2 dulu (section 3).
+- **Jika sudah `USE_S3=True`:** cek `AWS_S3_CUSTOM_DOMAIN` sudah benar dan bucket public access aktif.
+- Cek Railway logs untuk error `NoCredentialsError` atau `BucketNotFound`.
 
-### Build Railway gagal karena torch/tensorflow terlalu besar
-Railway punya limit 8GB disk saat build. `torch==2.2.2+cpu` ~700MB, `tensorflow-cpu` ~400MB — total masih aman. Jika tetap gagal, tambahkan di Railway:
+### `ModuleNotFoundError: No module named 'storages'`
+`django-storages` belum ditambahkan ke `requirements.txt`. Tambahkan dan push, Railway akan auto-redeploy.
+
+### Build Railway gagal karena memory/disk penuh
+`torch==2.2.2+cpu` ~700MB + `tensorflow-cpu` ~400MB — total ~1.5GB saat install. Railway punya limit 8GB, masih aman. Jika tetap gagal, coba tambahkan variable di Railway:
 ```
 NIXPACKS_NO_CACHE=true
 ```
 
-### Vite build error di Vercel
+### Vite build error di Vercel: `Cannot find module`
 Pastikan Root Directory di Vercel diset ke `frontend`, bukan root repo.
+
+### Login berhasil tapi semua API return 401
+Token format salah. Pastikan tidak ada session SSO aktif yang konflik — coba clear localStorage browser lalu login ulang.
 
 ---
 
