@@ -27,6 +27,10 @@ scipy==1.13.1
 pandas==2.2.3
 imutils==0.5.4
 
+# ─── Media Storage (S3-compatible: Cloudflare R2 / AWS S3 / Backblaze B2) ────
+django-storages[s3]==1.14.4
+boto3==1.35.0
+
 # ─── Utilities ────────────────────────────────────────────────────────────────
 requests==2.32.3
 python-dotenv==1.0.1

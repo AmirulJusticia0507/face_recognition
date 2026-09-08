@@ -158,6 +158,28 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # WhiteNoise compressed static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
+# ─── MEDIA STORAGE (S3-compatible: Cloudflare R2 / AWS S3 / Backblaze B2) ────
+# Set USE_S3=True di Railway environment variables untuk aktifkan.
+# Tanpa ini, media disimpan di filesystem Railway yang ephemeral (hilang saat restart).
+if os.environ.get('USE_S3') == 'True':
+    INSTALLED_APPS += ['storages']
+
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME', 'face-recognition-media')
+    AWS_S3_ENDPOINT_URL = os.environ.get('AWS_S3_ENDPOINT_URL')    # R2: https://<id>.r2.cloudflarestorage.com
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('AWS_S3_CUSTOM_DOMAIN')  # R2 public URL: pub-xxxx.r2.dev
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_QUERYSTRING_AUTH = False  # URL publik tanpa signature
+
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f'https://{AWS_S3_CUSTOM_DOMAIN}/'
+    elif AWS_S3_ENDPOINT_URL and AWS_STORAGE_BUCKET_NAME:
+        MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
