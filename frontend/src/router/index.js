@@ -26,6 +26,12 @@ const routes = [
     meta: { title: 'Data Orang', requiresAuth: true }
   },
   {
+    path: '/people/:id',
+    name: 'PersonDetail',
+    component: () => import('../views/PersonDetail.vue'),
+    meta: { title: 'Detail Orang', requiresAuth: true }
+  },
+  {
     path: '/profile',
     name: 'Profile',
     component: () => import('../views/Profile.vue'),

@@ -61,7 +61,8 @@ def save_face_image(person, upload, detector_backend='opencv'):
             os.unlink(tmp_path)
 
 
-def find_best_match(image_path, model_name='ArcFace', detector_backend='opencv'):
+def find_best_match(image_path, model_name='ArcFace', detector_backend='opencv',
+                     enforce_detection=True, align=True):
     if not face_db_has_images():
         return None
 
@@ -70,6 +71,8 @@ def find_best_match(image_path, model_name='ArcFace', detector_backend='opencv')
         db_path=GALLERY_DIR,
         model_name=model_name,
         detector_backend=detector_backend,
+        enforce_detection=enforce_detection,
+        align=align,
         silent=True,
     )
     if not dfs or dfs[0].empty:

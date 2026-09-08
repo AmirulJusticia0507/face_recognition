@@ -195,14 +195,14 @@ onMounted(() => {
           </div>
           <div class="flex items-center gap-2">
             <button
-              @click="currentPage--"
+              @click="currentPage--; fetchPeople()"
               :disabled="currentPage === 1"
               class="btn-secondary text-sm"
             >
               Previous
             </button>
             <button
-              @click="currentPage++"
+              @click="currentPage++; fetchPeople()"
               :disabled="currentPage === totalPages"
               class="btn-secondary text-sm"
             >

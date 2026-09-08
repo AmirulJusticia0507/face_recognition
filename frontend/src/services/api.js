@@ -8,14 +8,17 @@ const api = axios.create({
   timeout: 30000,
 })
 
-// Request interceptor - support both local auth and SSO tokens
+// Request interceptor - support both local auth (Token) and SSO tokens (Bearer)
 api.interceptors.request.use(
   (config) => {
     const ssoToken = localStorage.getItem('access_token')
     const localToken = localStorage.getItem('authToken')
-    const token = ssoToken || localToken
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    if (ssoToken) {
+      // SSO / Keycloak JWT — uses Bearer scheme
+      config.headers.Authorization = `Bearer ${ssoToken}`
+    } else if (localToken) {
+      // Django local Token auth — uses Token scheme
+      config.headers.Authorization = `Token ${localToken}`
     }
     return config
   },
@@ -147,6 +150,14 @@ export const forensicApi = {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
   getHistory: (params) => api.get('/forensic/ela/', { params }),
+}
+
+// Camera Management API (local Django backend)
+export const cameraApi = {
+  list: () => api.get('/cameras/'),
+  create: (data) => api.post('/cameras/', data),
+  update: (id, data) => api.put(`/cameras/${id}/`, data),
+  delete: (id) => api.delete(`/cameras/${id}/`),
 }
 
 // CCTV AI-CCTV API (external Jogja Smart Province)

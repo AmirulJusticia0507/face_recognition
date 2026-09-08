@@ -82,12 +82,14 @@ class PoseLog(models.Model):
     image = models.ImageField(upload_to='pose_snapshots/', null=True, blank=True)
 
 class ViolationLog(models.Model):
-    plate_number = models.CharField(max_length=20)
-    vehicle_image = models.ImageField(upload_to='violations/')
+    plate_number = models.CharField(max_length=20, blank=True, default='UNKNOWN')
+    vehicle_image = models.ImageField(upload_to='violations/', null=True, blank=True)
     driver_image = models.ImageField(upload_to='violations/', null=True, blank=True)
     violation_type = models.CharField(max_length=50)
     violation_time = models.DateTimeField(auto_now_add=True)
     location = models.CharField(max_length=255, null=True, blank=True)
+    camera_name = models.CharField(max_length=100, null=True, blank=True)
+    description = models.TextField(null=True, blank=True)
     fine_amount = models.FloatField(null=True, blank=True)
     status = models.CharField(max_length=20, default='Pending')
 

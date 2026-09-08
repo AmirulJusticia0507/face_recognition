@@ -4,8 +4,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 import Swal from 'sweetalert2'
-
-const CCTV_API = import.meta.env.VITE_API_URL || ''
+import { cameraApi } from '../services/api'
 
 const name = ref('')
 const source = ref('jogjakota')
@@ -36,12 +35,8 @@ const statusOptions = [
 const loadCameras = async () => {
   loading.value = true
   try {
-    const response = await fetch(CCTV_API + 'cameras/', {
-      headers: { 'Accept': 'application/json' }
-    })
-    if (response.ok) {
-      cameras.value = await response.json()
-    }
+    const response = await cameraApi.list()
+    cameras.value = response.data
   } catch (err) {
     console.warn('Camera API not available')
     cameras.value = []
@@ -62,27 +57,23 @@ const saveCamera = async () => {
       status: status.value,
       description: description.value,
     }
-    const method = isEditing.value ? 'PUT' : 'POST'
-    const endpoint = isEditing.value
-      ? CCTV_API + 'cameras/' + cameraId.value + '/'
-      : CCTV_API + 'cameras/'
-
-    const response = await fetch(endpoint, {
-      method: method,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-
-    const data = await response.json()
-    if (response.ok) {
-      loadCameras()
-      resetForm()
-      Swal.fire('Berhasil', isEditing.value ? 'Kamera berhasil diperbarui' : 'Kamera berhasil ditambahkan', 'success')
+    let data
+    if (isEditing.value) {
+      const response = await cameraApi.update(cameraId.value, payload)
+      data = response.data
     } else {
-      Swal.fire('Error', data.detail || 'Gagal menyimpan camera', 'error')
+      const response = await cameraApi.create(payload)
+      data = response.data
     }
+
+    loadCameras()
+    resetForm()
+    Swal.fire('Berhasil', isEditing.value ? 'Kamera berhasil diperbarui' : 'Kamera berhasil ditambahkan', 'success')
   } catch (err) {
-    Swal.fire('Error', 'Gagal menghubungi server', 'error')
+    const msg = err.response?.data?.detail
+      || JSON.stringify(err.response?.data || {})
+      || 'Gagal menyimpan camera'
+    Swal.fire('Error', msg !== '{}' ? msg : 'Gagal menghubungi server', 'error')
     console.error(err)
   } finally {
     loading.value = false
@@ -104,7 +95,7 @@ const editCamera = (camera) => {
 const deleteCamera = async (id) => {
   if (!confirm('Yakin menghapus camera ini?')) return
   try {
-    await fetch(CCTV_API + 'cameras/' + id + '/', { method: 'DELETE' })
+    await cameraApi.delete(id)
     loadCameras()
     Swal.fire('Dihapus', 'Camera berhasil dihapus dari daftar', 'success')
   } catch (err) {

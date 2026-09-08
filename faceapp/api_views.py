@@ -83,6 +83,26 @@ def estimate_pose_and_scores(face_path):
 AVAILABLE_MODELS = ['ArcFace', 'Facenet', 'VGG-Face', 'OpenFace', 'DeepFace', 'DeepID', 'Dlib']
 
 
+def get_active_face_config(request_data=None):
+    """Ambil konfigurasi face aktif dari ModelSetting, dengan override dari request."""
+    cfg = ModelSetting.get_solo()
+    data = request_data or {}
+    # request_data bisa QueryDict (request.data) — pakai .get dengan fallback
+    try:
+        model_name = data.get('model') or cfg.default_model or 'ArcFace'
+    except Exception:
+        model_name = cfg.default_model or 'ArcFace'
+    if model_name not in AVAILABLE_MODELS:
+        model_name = cfg.default_model if cfg.default_model in AVAILABLE_MODELS else 'ArcFace'
+    return {
+        'model_name': model_name,
+        'detector_backend': cfg.detection_backend or 'opencv',
+        'enforce_detection': bool(cfg.enforce_detection),
+        'align': bool(cfg.align),
+        'threshold': cfg.similarity_threshold,
+    }
+
+
 class AuthLoginView(APIView):
     permission_classes = [AllowAny]
     parser_classes = [JSONParser]
@@ -129,6 +149,8 @@ class AuthRegisterView(APIView):
 
 
 class AuthLogoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         if hasattr(request.user, 'auth_token'):
             request.user.auth_token.delete()
@@ -136,6 +158,8 @@ class AuthLogoutView(APIView):
 
 
 class AuthProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         user = request.user
         return Response({
@@ -154,6 +178,8 @@ class AuthProfileView(APIView):
 
 
 class AuthChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         old_password = request.data.get('old_password')
         new_password = request.data.get('new_password')
@@ -165,6 +191,8 @@ class AuthChangePasswordView(APIView):
 
 
 class DashboardStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         total_comparisons = FaceComparisonLog.objects.count()
         total_people = Person.objects.count()
@@ -181,6 +209,8 @@ class DashboardStatsView(APIView):
 
 
 class DashboardRecentActivityView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         limit = int(request.query_params.get('limit', 10))
         activities = []
@@ -214,6 +244,8 @@ class DashboardRecentActivityView(APIView):
 
 
 class DashboardChartView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         days = int(request.query_params.get('days', 7))
         today = timezone.now().date()
@@ -241,6 +273,7 @@ class DashboardChartView(APIView):
 
 
 class PersonListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
     pagination_class = FlexiblePagination
 
     def get(self, request):
@@ -277,6 +310,8 @@ class PersonListCreateView(APIView):
 
 
 class PersonDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pk):
         try:
             person = Person.objects.get(pk=pk)
@@ -311,6 +346,7 @@ class PersonDetailView(APIView):
 
 
 class PersonUploadPhotosView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request, pk):
@@ -340,6 +376,8 @@ class PersonUploadPhotosView(APIView):
 
 
 class PersonPhotosView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pk):
         try:
             person = Person.objects.get(pk=pk)
@@ -365,41 +403,59 @@ class PersonPhotosView(APIView):
 
 
 class FaceCompareAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
         foto_a = request.FILES.get('foto_a')
         foto_b = request.FILES.get('foto_b')
-        model_name = request.data.get('model', 'ArcFace')
+        # 7. Model Settings sebagai default; request boleh override via 'model'
+        cfg = get_active_face_config(request.data)
+        model_name = cfg['model_name']
 
         if not foto_a or not foto_b:
             return Response({"error": "Kedua foto wajib diunggah."}, status=400)
 
-        foto_a_name = f"{uuid.uuid4()}_a.jpg"
-        foto_b_name = f"{uuid.uuid4()}_b.jpg"
-        foto_a_path = os.path.join(settings.MEDIA_ROOT, 'faces', foto_a_name)
-        foto_b_path = os.path.join(settings.MEDIA_ROOT, 'faces', foto_b_name)
-        os.makedirs(os.path.dirname(foto_a_path), exist_ok=True)
-
-        with open(foto_a_path, 'wb+') as f:
-            for chunk in foto_a.chunks():
-                f.write(chunk)
-        with open(foto_b_path, 'wb+') as f:
-            for chunk in foto_b.chunks():
-                f.write(chunk)
-
+        # 12. Pakai tempfile unik agar tidak ada file yatim di MEDIA_ROOT.
+        # Hasil akhir disimpan via ImageField (ContentFile), temp selalu dibersihkan.
+        tmp_a = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+        tmp_b = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+        tmp_a_path, tmp_b_path = tmp_a.name, tmp_b.name
+        tmp_a.close()
+        tmp_b.close()
+        data_a = data_b = None
         try:
-            result = DeepFace.verify(foto_a_path, foto_b_path, model_name=model_name)
+            with open(tmp_a_path, 'wb+') as f:
+                for chunk in foto_a.chunks():
+                    f.write(chunk)
+            with open(tmp_b_path, 'wb+') as f:
+                for chunk in foto_b.chunks():
+                    f.write(chunk)
+            with open(tmp_a_path, 'rb') as f:
+                data_a = f.read()
+            with open(tmp_b_path, 'rb') as f:
+                data_b = f.read()
+
+            result = DeepFace.verify(
+                tmp_a_path, tmp_b_path,
+                model_name=model_name,
+                detector_backend=cfg['detector_backend'],
+                enforce_detection=cfg['enforce_detection'],
+                align=cfg['align'],
+            )
             similarity = result.get("distance")
             threshold = result.get("threshold")
             verified = result.get("verified")
-            similarity_percent = round((1 - similarity / threshold) * 100, 2)
+            try:
+                similarity_percent = round((1 - similarity / threshold) * 100, 2)
+            except (TypeError, ZeroDivisionError):
+                similarity_percent = 0.0
 
-            pose_score, lighting_score, occlusion_score, sharpness_score = estimate_pose_and_scores(foto_a_path)
+            pose_score, lighting_score, occlusion_score, sharpness_score = estimate_pose_and_scores(tmp_a_path)
 
             log = FaceComparisonLog.objects.create(
-                foto_a=f'faces/{foto_a_name}',
-                foto_b=f'faces/{foto_b_name}',
+                foto_a=ContentFile(data_a, name=f"{uuid.uuid4()}_a.jpg"),
+                foto_b=ContentFile(data_b, name=f"{uuid.uuid4()}_b.jpg"),
                 model_used=model_name,
                 similarity_percent=similarity_percent,
                 verified=verified
@@ -423,14 +479,24 @@ class FaceCompareAPIView(APIView):
                 "error": "Gagal memproses gambar. Pastikan gambar jelas dan mengandung wajah.",
                 "details": str(e)
             }, status=500)
+        finally:
+            for p in (tmp_a_path, tmp_b_path):
+                try:
+                    if p and os.path.exists(p):
+                        os.unlink(p)
+                except OSError:
+                    pass
 
 
 class IdentifyView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
         photo = request.FILES.get('photo')
-        model_name = request.data.get('model', 'ArcFace')
+        # 7. Model Settings sebagai default; request boleh override via 'model'
+        cfg = get_active_face_config(request.data)
+        model_name = cfg['model_name']
 
         if not photo:
             return Response({'error': 'Foto wajib diunggah.'}, status=400)
@@ -442,14 +508,45 @@ class IdentifyView(APIView):
                 tmp.write(chunk)
             tmp.close()
 
-            result = face_services.find_best_match(tmp_path, model_name=model_name)
+            with open(tmp_path, 'rb') as f:
+                photo_bytes = f.read()
+
+            result = face_services.find_best_match(
+                tmp_path,
+                model_name=model_name,
+                detector_backend=cfg['detector_backend'],
+                enforce_detection=cfg['enforce_detection'],
+                align=cfg['align'],
+            )
             if result is None:
+                # 9. Tetap log percobaan yang tidak cocok (unknown face)
+                try:
+                    FaceLog.objects.create(
+                        foto_a=ContentFile(photo_bytes, name=f"identify_{uuid.uuid4().hex}.jpg"),
+                        model_used=model_name,
+                        similarity_percent=0,
+                        verified=False,
+                        notes='identify: no match',
+                    )
+                except Exception:
+                    pass
                 return Response({
                     'matched': False,
                     'error': 'Tidak ada kecocokan wajah di database.'
                 })
 
             person = result['person']
+            # 9. Log setiap identifikasi (berhasil) ke FaceLog
+            try:
+                FaceLog.objects.create(
+                    foto_a=ContentFile(photo_bytes, name=f"identify_{uuid.uuid4().hex}.jpg"),
+                    model_used=model_name,
+                    similarity_percent=result.get('similarity_percent', 0),
+                    verified=True,
+                    notes=f"identify: {person.name} (id={person.id})",
+                )
+            except Exception:
+                pass
             return Response({
                 'matched': True,
                 'similarity_percent': result['similarity_percent'],
@@ -476,6 +573,7 @@ class IdentifyView(APIView):
 
 
 class HistoryListView(APIView):
+    permission_classes = [IsAuthenticated]
     pagination_class = FlexiblePagination
 
     def get(self, request):
@@ -502,6 +600,8 @@ class HistoryListView(APIView):
 
 
 class HistoryDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pk):
         try:
             log = FaceComparisonLog.objects.get(pk=pk)
@@ -528,12 +628,16 @@ class HistoryDetailView(APIView):
 
 
 class HistoryClearView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def delete(self, request):
         FaceComparisonLog.objects.all().delete()
         return Response({'success': True})
 
 
 class ModelSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         settings_obj = ModelSetting.get_solo()
         serializer = ModelSettingSerializer(settings_obj)
@@ -549,24 +653,36 @@ class ModelSettingsView(APIView):
 
 
 class ModelSettingsAvailableView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         return Response(AVAILABLE_MODELS)
 
 
 class ModelSettingsTestView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
 
     def post(self, request):
-        model_name = request.data.get('model', 'ArcFace')
+        cfg = get_active_face_config(request.data)
+        model_name = request.data.get('model') or cfg['model_name']
 
-        dummy = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
-        tmp_path = os.path.join(settings.MEDIA_ROOT, 'tmp_test.jpg')
-        os.makedirs(os.path.dirname(tmp_path), exist_ok=True)
-        cv2.imwrite(tmp_path, dummy)
-
+        # 13. Pakai tempfile unik per-request agar aman dari race condition
+        tmp = tempfile.NamedTemporaryFile(suffix='.jpg', delete=False)
+        tmp_path = tmp.name
+        tmp.close()
         try:
+            dummy = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
+            cv2.imwrite(tmp_path, dummy)
+
             start = time.time()
-            DeepFace.represent(img_path=tmp_path, model_name=model_name, enforce_detection=False)
+            DeepFace.represent(
+                img_path=tmp_path,
+                model_name=model_name,
+                detector_backend=cfg['detector_backend'],
+                enforce_detection=False,
+                align=cfg['align'],
+            )
             elapsed = round((time.time() - start) * 1000, 2)
 
             return Response({
@@ -581,11 +697,15 @@ class ModelSettingsTestView(APIView):
                 'memory_usage': 0,
             }, status=500)
         finally:
-            if os.path.exists(tmp_path):
-                os.unlink(tmp_path)
+            try:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 class LiveCameraSnapshotView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
 
     def post(self, request):
@@ -618,6 +738,7 @@ class LiveCameraSnapshotView(APIView):
 
 
 class LiveCameraSnapshotsView(APIView):
+    permission_classes = [IsAuthenticated]
     pagination_class = FlexiblePagination
 
     def get(self, request):
@@ -641,6 +762,7 @@ class LiveCameraSnapshotsView(APIView):
 
 
 class PoseEstimationView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):
@@ -655,8 +777,26 @@ class PoseEstimationView(APIView):
                 tmp.write(chunk)
             tmp.close()
 
+            with open(tmp_path, 'rb') as f:
+                photo_bytes = f.read()
+
             pose_score, lighting_score, occlusion_score, sharpness_score = estimate_pose_and_scores(tmp_path)
             overall = round((pose_score + lighting_score + occlusion_score + sharpness_score) / 4)
+            angles = {'pitch': 5, 'yaw': 3, 'roll': 2}
+
+            # 8. Simpan hasil estimasi ke PoseLog agar ada riwayat
+            try:
+                PoseLog.objects.create(
+                    pose=(
+                        f"overall:{overall} pose:{pose_score} "
+                        f"light:{lighting_score} occ:{occlusion_score} "
+                        f"sharp:{sharpness_score} "
+                        f"pitch:{angles['pitch']} yaw:{angles['yaw']} roll:{angles['roll']}"
+                    ),
+                    image=ContentFile(photo_bytes, name=f"pose_{uuid.uuid4().hex}.jpg"),
+                )
+            except Exception:
+                pass
 
             return Response({
                 'overall_score': overall,
@@ -664,7 +804,7 @@ class PoseEstimationView(APIView):
                 'lighting_score': lighting_score,
                 'occlusion_score': occlusion_score,
                 'sharpness_score': sharpness_score,
-                'angles': {'pitch': 5, 'yaw': 3, 'roll': 2},
+                'angles': angles,
             })
         except Exception as e:
             return Response({'error': f'Gagal memproses: {e}'}, status=500)
@@ -691,10 +831,14 @@ ETLE_CAMERAS = [
 
 
 class EtleCameraListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         return Response(ETLE_CAMERAS)
 
 class JogjaCCTVListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         try:
             resp = requests.get(
@@ -724,6 +868,7 @@ class JogjaCCTVListView(APIView):
 
 
 class CameraListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser]
 
     def get(self, request):
@@ -740,21 +885,26 @@ class CameraListCreateView(APIView):
 
 
 class CameraRetrieveUpdateDestroyView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser]
 
     def get_object(self, pk):
         try:
             return Camera.objects.get(pk=pk)
         except Camera.DoesNotExist:
-            return Response({'error': 'Camera not found'}, status=status.HTTP_404_NOT_FOUND)
+            return None
 
     def get(self, request, pk):
         camera = self.get_object(pk)
+        if camera is None:
+            return Response({'error': 'Camera not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = CameraSerializer(camera)
         return Response(serializer.data)
 
     def put(self, request, pk):
         camera = self.get_object(pk)
+        if camera is None:
+            return Response({'error': 'Camera not found'}, status=status.HTTP_404_NOT_FOUND)
         serializer = CameraSerializer(camera, data=request.data)
         if serializer.is_valid():
             serializer.save()
@@ -763,11 +913,14 @@ class CameraRetrieveUpdateDestroyView(APIView):
 
     def delete(self, request, pk):
         camera = self.get_object(pk)
+        if camera is None:
+            return Response({'error': 'Camera not found'}, status=status.HTTP_404_NOT_FOUND)
         camera.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class EtleCameraDetectView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser, MultiPartParser]
 
     def post(self, request):
@@ -858,11 +1011,16 @@ class EtleCameraDetectView(APIView):
                         'camera': camera,
                     })
 
-                ViolationLog.objects.create(
-                    violation_type=violations[0]['type'],
-                    description=violations[0]['description'],
-                    camera_id=camera,
-                )
+                # Hanya simpan jika bukan status normal
+                if violations[0]['type'] != 'normal':
+                    ViolationLog.objects.create(
+                        plate_number='UNKNOWN',
+                        violation_type=violations[0]['type'],
+                        description=violations[0]['description'],
+                        camera_name=str(camera) if camera else '',
+                        location=str(camera) if camera else '',
+                        status='Pending',
+                    )
 
         except Exception as e:
             violations.append({
@@ -879,6 +1037,7 @@ class EtleCameraDetectView(APIView):
 
 
 class ViolationLogsListView(APIView):
+    permission_classes = [IsAuthenticated]
     pagination_class = FlexiblePagination
 
     def get(self, request):
@@ -890,6 +1049,8 @@ class ViolationLogsListView(APIView):
 
 
 class ViolationLogsDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pk):
         try:
             log = ViolationLog.objects.get(pk=pk)
@@ -909,6 +1070,8 @@ class ViolationLogsDetailView(APIView):
 
 
 class ViolationLogsStatsView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         now = timezone.now()
         today = now.date()
@@ -922,6 +1085,8 @@ class ViolationLogsStatsView(APIView):
 
 
 class ViolationLogsExportCSVView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         import csv
         import io
@@ -931,11 +1096,11 @@ class ViolationLogsExportCSVView(APIView):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="violation_logs.csv"'
         writer = csv.writer(response)
-        writer.writerow(['ID', 'Plat Nomor', 'Waktu', 'Jenis', 'Kamera', 'Deskripsi', 'Status', 'Grafi'])
+        writer.writerow(['ID', 'Plat Nomor', 'Waktu', 'Jenis', 'Kamera', 'Deskripsi', 'Status', 'Denda'])
         for log in queryset:
             writer.writerow([
                 log.id,
-                log.plate_number,
+                log.plate_number or '',
                 log.violation_time.strftime('%Y-%m-%d %H:%M:%S') if log.violation_time else '',
                 log.violation_type,
                 log.camera_name or '',
@@ -951,6 +1116,7 @@ class ViolationLogsExportCSVView(APIView):
 # ─── ROLE & USER PERMISSIONS ────────────────────────────────────────────────
 
 class RoleListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
     """GET list semua role / POST buat role baru"""
 
     def get(self, request):
@@ -985,6 +1151,7 @@ class RoleListCreateView(APIView):
 
 
 class RoleDetailView(APIView):
+    permission_classes = [IsAuthenticated]
     """GET detail / PUT update / DELETE hapus satu role"""
 
     def _get_group(self, pk):
@@ -1030,6 +1197,7 @@ class RoleDetailView(APIView):
 
 
 class PermissionListView(APIView):
+    permission_classes = [IsAuthenticated]
     """GET semua Django permission (untuk pilihan saat assign ke role)"""
 
     def get(self, request):
@@ -1058,6 +1226,7 @@ class PermissionListView(APIView):
 
 
 class UserListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
     """GET list users / POST buat user baru"""
     pagination_class = FlexiblePagination
 
@@ -1117,6 +1286,7 @@ class UserListCreateView(APIView):
 
 
 class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
     """GET detail / PUT update / DELETE hapus satu user"""
 
     def _get_user(self, pk):
@@ -1179,6 +1349,7 @@ class UserDetailView(APIView):
 
 
 class UserToggleActiveView(APIView):
+    permission_classes = [IsAuthenticated]
     """POST toggle status aktif/nonaktif user"""
 
     def post(self, request, pk):
@@ -1197,6 +1368,7 @@ class UserToggleActiveView(APIView):
 
 
 class ForensicAnalysisAPIView(APIView):
+    permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser]
 
     def post(self, request):

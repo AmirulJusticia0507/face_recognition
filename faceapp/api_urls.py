@@ -41,7 +41,11 @@ urlpatterns = [
     path('pose-estimation/history/', v.PoseEstimationView.as_view(), name='api-pose-estimation-history'),
 
     path('etle-camera/cameras/', v.EtleCameraListView.as_view(), name='api-etle-cameras'),
+    path('etle-camera/cameras/jogja/', v.JogjaCCTVListView.as_view(), name='api-etle-cameras-jogja'),
     path('etle-camera/detect/', v.EtleCameraDetectView.as_view(), name='api-etle-detect'),
+
+    path('cameras/', v.CameraListCreateView.as_view(), name='api-cameras-list'),
+    path('cameras/<int:pk>/', v.CameraRetrieveUpdateDestroyView.as_view(), name='api-cameras-detail'),
 
     path('violation-logs/', v.ViolationLogsListView.as_view(), name='api-violation-logs'),
     path('violation-logs/stats/', v.ViolationLogsStatsView.as_view(), name='api-violation-logs-stats'),

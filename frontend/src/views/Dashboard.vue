@@ -1,7 +1,21 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, nextTick } from 'vue'
 import { dashboardApi } from '../services/api'
 import { useRouter } from 'vue-router'
+import {
+  Chart,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js'
+
+Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 const router = useRouter()
 
@@ -13,8 +27,51 @@ const stats = ref({
 })
 
 const recentActivity = ref([])
-const chartData = ref({ labels: [], datasets: [] })
 const loading = ref(true)
+let chartInstance = null
+
+const renderChart = (labels, data) => {
+  const canvas = document.getElementById('activityChart')
+  if (!canvas) return
+  if (chartInstance) {
+    chartInstance.destroy()
+    chartInstance = null
+  }
+  chartInstance = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Comparisons',
+          data,
+          backgroundColor: 'rgba(99, 102, 241, 0.5)',
+          borderColor: 'rgba(99, 102, 241, 1)',
+          borderWidth: 2,
+          borderRadius: 6,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 1 },
+          grid: { color: 'rgba(0,0,0,0.05)' },
+        },
+        x: {
+          grid: { display: false },
+        },
+      },
+    },
+  })
+}
 
 const fetchDashboardData = async () => {
   try {
@@ -26,7 +83,13 @@ const fetchDashboardData = async () => {
     ])
     stats.value = statsRes.data
     recentActivity.value = activityRes.data
-    chartData.value = chartRes.data
+
+    // Render chart after DOM updates
+    await nextTick()
+    const cd = chartRes.data
+    const labels = cd.labels || cd.map?.(d => d.date) || []
+    const data = cd.datasets?.[0]?.data || cd.map?.(d => d.count) || []
+    renderChart(labels, data)
   } catch (error) {
     console.error('Failed to fetch dashboard data:', error)
   } finally {
@@ -158,11 +221,11 @@ onMounted(() => {
           <h2 class="text-lg font-semibold text-gray-900">Comparison Activity (Last 7 Days)</h2>
         </div>
         <div class="card-body">
-          <div class="h-64" v-if="!loading">
-            <canvas id="activityChart"></canvas>
-          </div>
-          <div class="h-64 flex items-center justify-center" v-else>
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div class="h-64 relative">
+            <div v-if="loading" class="absolute inset-0 flex items-center justify-center bg-white/70 rounded-xl">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+            <canvas id="activityChart" class="w-full h-full"></canvas>
           </div>
         </div>
       </div>

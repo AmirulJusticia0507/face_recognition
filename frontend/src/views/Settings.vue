@@ -447,6 +447,29 @@ onMounted(() => {
             </tbody>
           </table>
         </div>
+
+        <!-- Pagination Users -->
+        <div v-if="totalPages > 1" class="px-4 py-3 border-t border-gray-100 dark:border-dark-700 flex items-center justify-between">
+          <div class="text-sm text-gray-500">
+            Halaman {{ currentPage }} dari {{ totalPages }} ({{ totalUsers }} user)
+          </div>
+          <div class="flex items-center gap-2">
+            <button
+              @click="currentPage--; fetchUsers()"
+              :disabled="currentPage === 1"
+              class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Sebelumnya
+            </button>
+            <button
+              @click="currentPage++; fetchUsers()"
+              :disabled="currentPage === totalPages"
+              class="px-3 py-1.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Berikutnya
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
