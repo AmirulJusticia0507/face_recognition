@@ -20,9 +20,9 @@ Arsitektur deployment split:
 | `frontend/vercel.json` | ✅ Siap | SPA rewrite rules |
 | `frontend/vite.config.js` | ✅ Siap | proxy via `VITE_BACKEND_URL` |
 | `frontend/src/services/api.js` | ✅ Siap | absolute URL ke Railway jika env set |
-| **`django-storages` + S3 config** | ❌ Belum | **wajib** sebelum deploy ke Railway |
+| **`django-storages` + S3 config** | ✅ Sudah | Di `requirements.txt` + blok `USE_S3` di `core/settings.py` |
 
-> **Satu-satunya yang masih kurang:** media storage. Tanpa ini foto wajah hilang saat Railway restart.
+> Media storage sudah terimplementasi. Tinggal setup bucket R2 dan set env vars di Railway (section 3).
 
 ---
 
@@ -142,17 +142,10 @@ Ini dibutuhkan agar CORS backend hanya menerima request dari domain frontend.
 | **Backblaze B2** | Free 10GB | ⭐⭐⭐ |
 | **AWS S3** | ~$0.023/GB | ⭐⭐ |
 
-### 3.1 Perubahan Kode di Repo (Lakukan Dulu)
+### 3.1 Kode di Repo (Sudah Ada — Tinggal Verifikasi)
 
-**Langkah 1 — Tambahkan ke `requirements.txt`:**
-
-```
-# ─── Media Storage ────────────────────────────────────────────────────────────
-django-storages[s3]==1.14.4
-boto3==1.35.0
-```
-
-**Langkah 2 — Tambahkan ke `core/settings.py`** (di bagian bawah, setelah `STATIC_ROOT`):
+Blok storage sudah terimplementasi di `core/settings.py` (cari `USE_S3`) dan
+`django-storages[s3]` + `boto3` sudah ada di `requirements.txt`. Bentuknya:
 
 ```python
 # ─── MEDIA STORAGE (S3-compatible: AWS S3 / Cloudflare R2 / Backblaze B2) ────
@@ -176,15 +169,10 @@ if os.environ.get('USE_S3') == 'True':
         MEDIA_URL = f'{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/'
 ```
 
-**Langkah 3 — Commit dan push:**
+> Tanpa `USE_S3=True`, Django memakai filesystem lokal (`MEDIA_ROOT`) — cocok
+> untuk develop lokal, tapi file hilang saat Railway restart/redeploy.
 
-```bash
-git add requirements.txt core/settings.py
-git commit -m "feat: add S3-compatible media storage for Railway deployment"
-git push
-```
-
-Setelah ini, baru lanjut ke setup Cloudflare R2 dan deploy Railway.
+Setelah ini, lanjut ke setup Cloudflare R2 dan deploy Railway.
 
 ---
 
@@ -256,7 +244,7 @@ VITE_KEYCLOAK_URL=https://sso.jogjaprov.go.id
 VITE_KEYCLOAK_CLIENT_ID=webopd
 VITE_KEYCLOAK_REALM=aptika
 VITE_API_URL=https://spl.jogjaprov.go.id/ai-cctv/
-VITE_MAPBOX_ACCESS_TOKEN=pk.eyJ1...
+VITE_MAPBOX_ACCESS_TOKEN=(isi via Vercel env vars — jangan commit token asli)
 ```
 
 ---
@@ -265,10 +253,10 @@ VITE_MAPBOX_ACCESS_TOKEN=pk.eyJ1...
 
 > Urutan pengerjaan yang benar: **Kode dulu → Railway → Vercel → Update CORS**
 
-### Langkah 0 — Persiapan Kode (Lakukan Sekarang)
-- [ ] Tambah `django-storages[s3]==1.14.4` dan `boto3==1.35.0` ke `requirements.txt`
-- [ ] Tambah blok S3 storage config ke `core/settings.py` (lihat section 3.1)
-- [ ] Commit dan push ke GitHub
+### Langkah 0 — Persiapan Kode (Sudah Selesai di Repo)
+- [x] `django-storages[s3]==1.14.4` dan `boto3==1.35.0` ada di `requirements.txt`
+- [x] Blok S3 storage config ada di `core/settings.py` (flag `USE_S3`)
+- [x] Commit dan push ke GitHub
 
 ### Langkah 1 — Setup Cloudflare R2
 - [ ] Bucket `face-recognition-media` dibuat
@@ -321,7 +309,11 @@ Cek Railway logs. Kemungkinan `SECRET_KEY` belum diset atau database belum terhu
 - Cek Railway logs untuk error `NoCredentialsError` atau `BucketNotFound`.
 
 ### `ModuleNotFoundError: No module named 'storages'`
-`django-storages` belum ditambahkan ke `requirements.txt`. Tambahkan dan push, Railway akan auto-redeploy.
+`django-storages` sudah ada di `requirements.txt` — error ini berarti build
+Railway memakai cache lama. Tambahkan variable di Railway dan redeploy:
+```
+NIXPACKS_NO_CACHE=true
+```
 
 ### Build Railway gagal karena memory/disk penuh
 `torch==2.2.2+cpu` ~700MB + `tensorflow-cpu` ~400MB — total ~1.5GB saat install. Railway punya limit 8GB, masih aman. Jika tetap gagal, coba tambahkan variable di Railway:
