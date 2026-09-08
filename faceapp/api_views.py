@@ -26,13 +26,13 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .models import (
     Person, FaceImage, FaceComparisonLog, FaceLog, PoseLog,
-    ViolationLog, ForensicLog, ModelSetting,
+    ViolationLog, ForensicLog, ModelSetting, Camera,
 )
 from .serializers import (
     PersonListSerializer, PersonDetailSerializer, PersonCreateSerializer,
     FaceImageSerializer, FaceComparisonLogSerializer, FaceLogSerializer,
     ViolationLogSerializer, ViolationLogListSerializer, PoseLogSerializer,
-    ModelSettingSerializer, ForensicLogSerializer,
+    ModelSettingSerializer, ForensicLogSerializer, CameraSerializer,
 )
 from . import face_services
 from .forensics import (
@@ -944,6 +944,256 @@ class ViolationLogsExportCSVView(APIView):
                 log.fine_amount or '',
             ])
         return response
+
+
+
+
+# ─── ROLE & USER PERMISSIONS ────────────────────────────────────────────────
+
+class RoleListCreateView(APIView):
+    """GET list semua role / POST buat role baru"""
+
+    def get(self, request):
+        from django.contrib.auth.models import Group, Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        groups = Group.objects.prefetch_related('permissions').all()
+        data = []
+        for g in groups:
+            perms = [{'id': p.id, 'codename': p.codename, 'name': p.name} for p in g.permissions.all()]
+            data.append({
+                'id': g.id,
+                'name': g.name,
+                'user_count': g.user_set.count(),
+                'permissions': perms,
+            })
+        return Response(data)
+
+    def post(self, request):
+        from django.contrib.auth.models import Group, Permission
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({'error': 'Nama role wajib diisi.'}, status=400)
+        if Group.objects.filter(name=name).exists():
+            return Response({'error': 'Role dengan nama tersebut sudah ada.'}, status=400)
+        group = Group.objects.create(name=name)
+        perm_ids = request.data.get('permissions', [])
+        if perm_ids:
+            perms = Permission.objects.filter(id__in=perm_ids)
+            group.permissions.set(perms)
+        return Response({'id': group.id, 'name': group.name}, status=201)
+
+
+class RoleDetailView(APIView):
+    """GET detail / PUT update / DELETE hapus satu role"""
+
+    def _get_group(self, pk):
+        from django.contrib.auth.models import Group
+        try:
+            return Group.objects.get(pk=pk)
+        except Group.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        group = self._get_group(pk)
+        if not group:
+            return Response({'error': 'Role tidak ditemukan.'}, status=404)
+        perms = [{'id': p.id, 'codename': p.codename, 'name': p.name} for p in group.permissions.all()]
+        users = [{'id': u.id, 'username': u.username, 'name': u.get_full_name() or u.username}
+                 for u in group.user_set.all()]
+        return Response({'id': group.id, 'name': group.name, 'permissions': perms, 'users': users})
+
+    def put(self, request, pk):
+        from django.contrib.auth.models import Group, Permission
+        group = self._get_group(pk)
+        if not group:
+            return Response({'error': 'Role tidak ditemukan.'}, status=404)
+        name = request.data.get('name', group.name).strip()
+        if name and name != group.name:
+            if Group.objects.filter(name=name).exclude(pk=pk).exists():
+                return Response({'error': 'Nama role sudah digunakan.'}, status=400)
+            group.name = name
+            group.save()
+        perm_ids = request.data.get('permissions')
+        if perm_ids is not None:
+            perms = Permission.objects.filter(id__in=perm_ids)
+            group.permissions.set(perms)
+        return Response({'success': True})
+
+    def delete(self, request, pk):
+        from django.contrib.auth.models import Group
+        group = self._get_group(pk)
+        if not group:
+            return Response({'error': 'Role tidak ditemukan.'}, status=404)
+        group.delete()
+        return Response({'success': True})
+
+
+class PermissionListView(APIView):
+    """GET semua Django permission (untuk pilihan saat assign ke role)"""
+
+    def get(self, request):
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        # Filter hanya permission yang relevan dengan app ini
+        app_labels = ['faceapp', 'auth']
+        perms = Permission.objects.filter(
+            content_type__app_label__in=app_labels
+        ).select_related('content_type').order_by('content_type__model', 'codename')
+
+        data = {}
+        for p in perms:
+            model_label = f"{p.content_type.app_label} | {p.content_type.model}"
+            if model_label not in data:
+                data[model_label] = []
+            data[model_label].append({
+                'id': p.id,
+                'codename': p.codename,
+                'name': p.name,
+            })
+
+        result = [{'model': k, 'permissions': v} for k, v in data.items()]
+        return Response(result)
+
+
+class UserListCreateView(APIView):
+    """GET list users / POST buat user baru"""
+    pagination_class = FlexiblePagination
+
+    def get(self, request):
+        search = request.query_params.get('search', '')
+        queryset = User.objects.prefetch_related('groups').select_related().all()
+        if search:
+            queryset = queryset.filter(
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset.order_by('-date_joined'), request)
+        data = []
+        for u in page:
+            data.append({
+                'id': u.id,
+                'username': u.username,
+                'name': u.get_full_name() or u.username,
+                'email': u.email,
+                'is_active': u.is_active,
+                'is_staff': u.is_staff,
+                'is_superuser': u.is_superuser,
+                'date_joined': u.date_joined.isoformat(),
+                'last_login': u.last_login.isoformat() if u.last_login else None,
+                'roles': [{'id': g.id, 'name': g.name} for g in u.groups.all()],
+            })
+        return paginator.get_paginated_response(data)
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        password = request.data.get('password', '').strip()
+        email = request.data.get('email', '').strip()
+        first_name = request.data.get('first_name', '').strip()
+        last_name = request.data.get('last_name', '').strip()
+        is_staff = request.data.get('is_staff', False)
+        role_ids = request.data.get('roles', [])
+
+        if not username or not password:
+            return Response({'error': 'Username dan password wajib diisi.'}, status=400)
+        if User.objects.filter(username=username).exists():
+            return Response({'error': 'Username sudah digunakan.'}, status=400)
+
+        user = User.objects.create_user(
+            username=username, password=password, email=email,
+            first_name=first_name, last_name=last_name, is_staff=is_staff,
+        )
+        if role_ids:
+            from django.contrib.auth.models import Group
+            groups = Group.objects.filter(id__in=role_ids)
+            user.groups.set(groups)
+        Token.objects.get_or_create(user=user)
+        return Response({'id': user.id, 'username': user.username}, status=201)
+
+
+class UserDetailView(APIView):
+    """GET detail / PUT update / DELETE hapus satu user"""
+
+    def _get_user(self, pk):
+        try:
+            return User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        user = self._get_user(pk)
+        if not user:
+            return Response({'error': 'User tidak ditemukan.'}, status=404)
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'name': user.get_full_name() or user.username,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'is_active': user.is_active,
+            'is_staff': user.is_staff,
+            'is_superuser': user.is_superuser,
+            'date_joined': user.date_joined.isoformat(),
+            'last_login': user.last_login.isoformat() if user.last_login else None,
+            'roles': [{'id': g.id, 'name': g.name} for g in user.groups.all()],
+        })
+
+    def put(self, request, pk):
+        from django.contrib.auth.models import Group
+        user = self._get_user(pk)
+        if not user:
+            return Response({'error': 'User tidak ditemukan.'}, status=404)
+
+        user.first_name = request.data.get('first_name', user.first_name)
+        user.last_name = request.data.get('last_name', user.last_name)
+        user.email = request.data.get('email', user.email)
+        if 'is_active' in request.data:
+            user.is_active = request.data['is_active']
+        if 'is_staff' in request.data:
+            user.is_staff = request.data['is_staff']
+        if 'password' in request.data and request.data['password']:
+            user.set_password(request.data['password'])
+        user.save()
+
+        role_ids = request.data.get('roles')
+        if role_ids is not None:
+            groups = Group.objects.filter(id__in=role_ids)
+            user.groups.set(groups)
+
+        return Response({'success': True})
+
+    def delete(self, request, pk):
+        user = self._get_user(pk)
+        if not user:
+            return Response({'error': 'User tidak ditemukan.'}, status=404)
+        if user == request.user:
+            return Response({'error': 'Tidak dapat menghapus akun sendiri.'}, status=400)
+        user.delete()
+        return Response({'success': True})
+
+
+class UserToggleActiveView(APIView):
+    """POST toggle status aktif/nonaktif user"""
+
+    def post(self, request, pk):
+        try:
+            user = User.objects.get(pk=pk)
+        except User.DoesNotExist:
+            return Response({'error': 'User tidak ditemukan.'}, status=404)
+        if user == request.user:
+            return Response({'error': 'Tidak dapat menonaktifkan akun sendiri.'}, status=400)
+        user.is_active = not user.is_active
+        user.save()
+        return Response({'success': True, 'is_active': user.is_active})
+
+
+# ─── END ROLE & USER PERMISSIONS ─────────────────────────────────────────────
 
 
 class ForensicAnalysisAPIView(APIView):

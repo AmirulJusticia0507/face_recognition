@@ -48,4 +48,13 @@ urlpatterns = [
     path('violation-logs/<int:pk>/', v.ViolationLogsDetailView.as_view(), name='api-violation-log-detail'),
 
     path('forensic/ela/', v.ForensicAnalysisAPIView.as_view(), name='api-forensic-ela'),
+
+    # Role & User Permissions
+    path('roles/', v.RoleListCreateView.as_view(), name='api-roles-list'),
+    path('roles/<int:pk>/', v.RoleDetailView.as_view(), name='api-roles-detail'),
+    path('permissions/', v.PermissionListView.as_view(), name='api-permissions-list'),
+
+    path('users/', v.UserListCreateView.as_view(), name='api-users-list'),
+    path('users/<int:pk>/', v.UserDetailView.as_view(), name='api-users-detail'),
+    path('users/<int:pk>/toggle-active/', v.UserToggleActiveView.as_view(), name='api-users-toggle-active'),
 ]

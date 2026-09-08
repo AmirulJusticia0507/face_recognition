@@ -169,4 +169,25 @@ export const cctvService = {
   getEmbedUrl: (id) => `${import.meta.env.VITE_API_URL || ''}/embed?device=${id}`,
 }
 
+// Settings: Role & User Permissions API
+export const settingsApi = {
+  // Roles (Django Groups)
+  getRoles: () => api.get('/roles/'),
+  createRole: (data) => api.post('/roles/', data),
+  getRole: (id) => api.get(`/roles/${id}/`),
+  updateRole: (id, data) => api.put(`/roles/${id}/`, data),
+  deleteRole: (id) => api.delete(`/roles/${id}/`),
+
+  // Permissions
+  getPermissions: () => api.get('/permissions/'),
+
+  // Users
+  getUsers: (params) => api.get('/users/', { params }),
+  createUser: (data) => api.post('/users/', data),
+  getUser: (id) => api.get(`/users/${id}/`),
+  updateUser: (id, data) => api.put(`/users/${id}/`, data),
+  deleteUser: (id) => api.delete(`/users/${id}/`),
+  toggleUserActive: (id) => api.post(`/users/${id}/toggle-active/`),
+}
+
 export default api
