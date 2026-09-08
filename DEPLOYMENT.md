@@ -293,6 +293,26 @@ VITE_MAPBOX_ACCESS_TOKEN=(isi via Vercel env vars — jangan commit token asli)
 - [ ] Face comparison berfungsi
 - [ ] Dashboard chart tampil data
 
+### (Opsional) Seed Akun + Data Demo
+
+Untuk presentasi, seed akun demo + data contoh via Railway Shell:
+
+```bash
+python manage.py seed_demo
+```
+
+Yang dibuat (idempotent, aman dijalankan ulang):
+- User `demo` / password `demo12345` (staff, bukan superuser).
+  Password custom: `python manage.py seed_demo --password <pass>`
+- 4 orang contoh + foto wajah (diunduh dari randomuser.me — butuh internet).
+- 3 contoh violation agar dashboard & halaman pelanggaran tidak kosong.
+
+Login di URL Vercel dengan akun demo tersebut. Setelah demo selesai, hapus akunnya:
+
+```bash
+python manage.py shell -c "from django.contrib.auth.models import User; User.objects.filter(username='demo').delete()"
+```
+
 ---
 
 ## 6. Troubleshooting
