@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted } from 'vue'
 import Swal from 'sweetalert2'
 import { useSidebarStore } from '../stores/sidebar'
 import { useRouter } from 'vue-router'
+import { authApi } from '../services/api'
 
 const router = useRouter()
 const store = useSidebarStore()
@@ -21,40 +22,32 @@ const changePasswordLoading = ref(false)
 const fetchUser = async () => {
   loading.value = true
   try {
-    const response = await fetch(import.meta.env.VITE_API_URL || '/api/auth/profile/', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('access_token') || localStorage.getItem('authToken') || ''}`
-      }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      user.value = {
-        name: data.name || '',
-        email: data.email || '',
-        avatar: data.avatar,
-        photo_count: data.photo_count || 0,
-        joined_date: data.joined_date ? new Date(data.joined_date).toLocaleDateString('id-ID') : ''
-      }
-    } else {
-       Swal.fire('error', 'Error', 'Gagal memuat profil')
+    const response = await authApi.getProfile()
+    const data = response.data
+    user.value = {
+      name: data.name || '',
+      email: data.email || '',
+      avatar: data.avatar || null,
+      photo_count: data.photo_count || 0,
+      joined_date: data.date_joined ? new Date(data.date_joined).toLocaleDateString('id-ID') : ''
     }
   } catch (error) {
-     Swal.fire('error', 'Error', 'Gagal menghubungi server')
+    Swal.fire('Error', 'Gagal memuat profil', 'error')
     console.error(error)
   } finally {
     loading.value = false
   }
 }
 
+onMounted(fetchUser)
+
 const handleLogout = async () => {
   if (confirm('Yakin ingin logout?')) {
     try {
-      await fetch(import.meta.env.VITE_API_URL || '/api/auth/logout/', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('access_token') || localStorage.getItem('authToken') || ''}`
-        }
-      })
+      await authApi.logout()
+    } catch (error) {
+      console.error(error)
+    } finally {
       localStorage.removeItem('access_token')
       localStorage.removeItem('authToken')
       localStorage.removeItem('user')
@@ -63,10 +56,7 @@ const handleLogout = async () => {
       localStorage.removeItem('refresh_expires_at')
       localStorage.removeItem('token_response')
       router.push('/login')
-       Swal.fire('success', 'Berhasil', 'Anda telah logout')
-    } catch (error) {
-       Swal.fire('error', 'Error', 'Gagal logout')
-      router.push('/login')
+      Swal.fire('Berhasil', 'Anda telah logout', 'success')
     }
   }
 }
