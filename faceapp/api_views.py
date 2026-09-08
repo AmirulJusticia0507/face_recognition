@@ -3,10 +3,12 @@ import uuid
 import time
 import base64
 import tempfile
+from typing import cast
 import requests
 from datetime import timedelta
 
 import cv2
+import cv2.data
 import numpy as np
 from django.utils import timezone
 from django.contrib.auth.models import User
@@ -59,7 +61,8 @@ class FlexiblePagination(PageNumberPagination):
 def calculate_pose_score_from_angle(pitch, yaw, roll):
     max_angle = 30
     score = max(0, 100 - (abs(pitch) + abs(yaw) + abs(roll)) / (3 * max_angle) * 100)
-    return int(score)
+    # int() disengaja: pangkas desimal agar skor selalu bilangan bulat.
+    return int(score)  # pyrefly: ignore[unnecessary-type-conversion]
 
 
 def estimate_pose_and_scores(face_path):
@@ -97,8 +100,8 @@ def get_active_face_config(request_data=None):
     return {
         'model_name': model_name,
         'detector_backend': cfg.detection_backend or 'opencv',
-        'enforce_detection': bool(cfg.enforce_detection),
-        'align': bool(cfg.align),
+        'enforce_detection': cfg.enforce_detection,
+        'align': cfg.align,
         'threshold': cfg.similarity_threshold,
     }
 
@@ -116,6 +119,8 @@ class AuthLoginView(APIView):
         user = authenticate(username=username, password=password)
         if user is None:
             return Response({'error': 'Username atau password salah.'}, status=401)
+        # authenticate() bertipe AbstractBaseUser; di project ini selalu User
+        user = cast(User, user)
 
         token, _ = Token.objects.get_or_create(user=user)
         return Response({
@@ -288,7 +293,7 @@ class PersonListCreateView(APIView):
 
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request)
-        serializer = PersonListSerializer(page, many=True, context={'request': request})
+        serializer = PersonListSerializer(page or [], many=True, context={'request': request})
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
@@ -443,13 +448,15 @@ class FaceCompareAPIView(APIView):
                 enforce_detection=cfg['enforce_detection'],
                 align=cfg['align'],
             )
-            similarity = result.get("distance")
-            threshold = result.get("threshold")
-            verified = result.get("verified")
             try:
-                similarity_percent = round((1 - similarity / threshold) * 100, 2)
-            except (TypeError, ZeroDivisionError):
+                distance_raw = result.get("distance")
+                threshold_raw = result.get("threshold")
+                if distance_raw is None or threshold_raw is None:
+                    raise ValueError("Hasil DeepFace tidak lengkap.")
+                similarity_percent = round((1 - float(distance_raw) / float(threshold_raw)) * 100, 2)
+            except (TypeError, ValueError, ZeroDivisionError):
                 similarity_percent = 0.0
+            verified = bool(result.get("verified"))
 
             pose_score, lighting_score, occlusion_score, sharpness_score = estimate_pose_and_scores(tmp_a_path)
 
@@ -595,7 +602,7 @@ class HistoryListView(APIView):
             'verified': log.verified,
             'foto_a': log.foto_a.url if log.foto_a else None,
             'foto_b': log.foto_b.url if log.foto_b else None,
-        } for log in page]
+        } for log in (page or [])]
         return paginator.get_paginated_response(data)
 
 
@@ -1044,7 +1051,7 @@ class ViolationLogsListView(APIView):
         queryset = ViolationLog.objects.all()
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset, request)
-        serializer = ViolationLogListSerializer(page, many=True)
+        serializer = ViolationLogListSerializer(page or [], many=True)
         return paginator.get_paginated_response(serializer.data)
 
 
@@ -1130,7 +1137,7 @@ class RoleListCreateView(APIView):
             data.append({
                 'id': g.id,
                 'name': g.name,
-                'user_count': g.user_set.count(),
+                'user_count': g.user_set.count(),  # pyrefly: ignore[missing-attribute]
                 'permissions': perms,
             })
         return Response(data)
@@ -1167,7 +1174,7 @@ class RoleDetailView(APIView):
             return Response({'error': 'Role tidak ditemukan.'}, status=404)
         perms = [{'id': p.id, 'codename': p.codename, 'name': p.name} for p in group.permissions.all()]
         users = [{'id': u.id, 'username': u.username, 'name': u.get_full_name() or u.username}
-                 for u in group.user_set.all()]
+                 for u in group.user_set.all()]  # pyrefly: ignore[missing-attribute]
         return Response({'id': group.id, 'name': group.name, 'permissions': perms, 'users': users})
 
     def put(self, request, pk):
@@ -1244,7 +1251,7 @@ class UserListCreateView(APIView):
         paginator = self.pagination_class()
         page = paginator.paginate_queryset(queryset.order_by('-date_joined'), request)
         data = []
-        for u in page:
+        for u in (page or []):
             data.append({
                 'id': u.id,
                 'username': u.username,

@@ -1,6 +1,7 @@
 import os
 import tempfile
 import uuid
+from typing import Optional, TypedDict
 
 from django.conf import settings
 from django.core.files.base import ContentFile
@@ -8,6 +9,14 @@ from django.core.files.base import ContentFile
 from deepface import DeepFace
 
 from .models import FaceImage, Person
+
+
+class FaceMatchResult(TypedDict):
+    person: Person
+    distance: float
+    threshold: float
+    similarity_percent: float
+    matched_image: str
 
 GALLERY_DIR = os.path.join(settings.MEDIA_ROOT, 'face_db')
 
@@ -62,7 +71,7 @@ def save_face_image(person, upload, detector_backend='opencv'):
 
 
 def find_best_match(image_path, model_name='ArcFace', detector_backend='opencv',
-                     enforce_detection=True, align=True):
+                     enforce_detection=True, align=True) -> Optional[FaceMatchResult]:
     if not face_db_has_images():
         return None
 

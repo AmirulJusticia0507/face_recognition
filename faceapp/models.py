@@ -1,7 +1,12 @@
 import os
 import uuid
+from typing import TYPE_CHECKING
 
 from django.db import models
+
+if TYPE_CHECKING:
+    # Hanya untuk type checker (django-stubs). Tidak ada di runtime Django.
+    from django.db.models.fields.related_descriptors import RelatedManager
 
 
 def face_image_path(instance, filename):
@@ -17,6 +22,9 @@ class Person(models.Model):
     address = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Reverse relation dari FaceImage.person (related_name='face_images').
+    # Anotasi eksplisit agar type checker mengenali manager ini.
+    face_images: "RelatedManager[FaceImage]"
 
     class Meta:
         ordering = ['-created_at']

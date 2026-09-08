@@ -1,0 +1,4 @@
+# Arahkan Pyrefly ke virtual environment project agar third-party
+# imports (django, cv2, numpy, rest_framework, deepface) ikut ter-resolve.
+# Path relatif terhadap lokasi file ini (project root).
+python-interpreter-path = "venv/Scripts/python.exe"

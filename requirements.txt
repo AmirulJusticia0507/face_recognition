@@ -1,20 +1,33 @@
-Django>=4.2
-djangorestframework
-django-cors-headers
-django-widget-tweaks
-deepface>=0.0.79
-opencv-python<5
-Pillow
-numpy
-scipy
-pandas
-tensorflow
-torch
-tf-keras
-mtcnn
-gdown
-requests
-jinja2
-python-dotenv
-pymysql
-imutils
+# ─── Web Framework ────────────────────────────────────────────────────────────
+Django==6.1.1
+djangorestframework==3.16.0
+django-cors-headers==4.7.0
+django-widget-tweaks==1.5.0
+
+# ─── Production server & static files ────────────────────────────────────────
+gunicorn==21.2.0
+whitenoise==6.9.0
+
+# ─── Database ─────────────────────────────────────────────────────────────────
+pymysql==1.1.1
+
+# ─── Face Recognition ─────────────────────────────────────────────────────────
+# deepface pulls tensorflow; pin to avoid pulling full GPU torch build
+deepface==0.0.93
+# Use CPU-only torch to dramatically reduce bundle size (~200MB vs 800MB)
+torch==2.2.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+tensorflow-cpu==2.16.2
+tf-keras==2.16.0
+opencv-python-headless==4.10.0.84
+
+# ─── Image & Data ─────────────────────────────────────────────────────────────
+Pillow==10.4.0
+numpy==1.26.4
+scipy==1.13.1
+pandas==2.2.3
+imutils==0.5.4
+
+# ─── Utilities ────────────────────────────────────────────────────────────────
+requests==2.32.3
+python-dotenv==1.0.1
+gdown==5.2.0
