@@ -101,4 +101,9 @@ class ModelSettingSerializer(serializers.ModelSerializer):
 class CameraSerializer(serializers.ModelSerializer):
     class Meta:
         model = Camera
-        fields = ['id', 'name', 'source', 'stream_url', 'latitude', 'longitude', 'status', 'description', 'created_at', 'updated_at']
+        fields = [
+            'id', 'name', 'source', 'stream_url',
+            'latitude', 'longitude', 'status', 'description',
+            'building', 'room', 'floor',
+            'created_at', 'updated_at',
+        ]

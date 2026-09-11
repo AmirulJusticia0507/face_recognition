@@ -176,6 +176,9 @@ class Camera(models.Model):
     longitude = models.FloatField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='online')
     description = models.TextField(blank=True, null=True)
+    building = models.CharField(max_length=100, blank=True, null=True, verbose_name='Gedung/Lokasi')
+    room = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ruangan')
+    floor = models.CharField(max_length=20, blank=True, null=True, verbose_name='Lantai')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
