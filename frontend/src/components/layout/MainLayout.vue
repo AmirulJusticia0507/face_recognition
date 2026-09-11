@@ -1,18 +1,17 @@
 <script setup>
 import { computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useSidebarStore } from '../../stores/sidebar'
 import Sidebar from './Sidebar.vue'
 import Header from './Header.vue'
 import Footer from './Footer.vue'
 
-const router = useRouter()
 const route = useRoute()
 const sidebarStore = useSidebarStore()
 
-const isAuthPage = computed(() => {
-  return ['/login', '/register'].includes(route.path)
-})
+const isAuthPage = computed(() =>
+  ['login', 'register'].includes(route.name?.toLowerCase() || '')
+)
 
 const mainClasses = computed(() => {
   const base = 'min-h-screen bg-gray-50 dark:bg-dark-950 transition-all duration-300'
@@ -22,9 +21,15 @@ const mainClasses = computed(() => {
 </script>
 
 <template>
-  <div :class="mainClasses" @click="sidebarStore.closeMobile">
+  <!-- Auth pages: tampil tanpa Sidebar/Header -->
+  <div v-if="isAuthPage" class="min-h-screen bg-gray-50 dark:bg-dark-950">
+    <router-view />
+  </div>
+
+  <!-- App pages: pakai full layout -->
+  <div v-else :class="mainClasses" @click="sidebarStore.closeMobile">
     <!-- Sidebar Overlay for Mobile -->
-    <div 
+    <div
       v-if="sidebarStore.isMobileOpen"
       class="fixed inset-0 bg-black/50 z-40 lg:hidden"
       @click="sidebarStore.closeMobile"
