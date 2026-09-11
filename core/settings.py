@@ -83,6 +83,12 @@ if _frontend_url and not DEBUG:
         'https://face-recognition-gamma-teal.vercel.app',
     ]
 
+# Allow ngrok browser warning bypass header
+from corsheaders.defaults import default_headers
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'ngrok-skip-browser-warning',
+]
+
 ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
