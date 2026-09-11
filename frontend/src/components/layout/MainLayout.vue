@@ -27,7 +27,7 @@ const mainClasses = computed(() => {
   </div>
 
   <!-- App pages: pakai full layout -->
-  <div v-else :class="mainClasses" @click="sidebarStore.closeMobile">
+  <div v-else :class="mainClasses">
     <!-- Sidebar Overlay for Mobile -->
     <div
       v-if="sidebarStore.isMobileOpen"
