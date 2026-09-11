@@ -21,13 +21,17 @@ DEBUG = os.environ.get('DEBUG', 'False') == 'True'
 
 # Railway injects RAILWAY_PUBLIC_DOMAIN; allow it plus localhost for dev.
 _railway_host = os.environ.get('RAILWAY_PUBLIC_DOMAIN', '')
+_ngrok_host = os.environ.get('NGROK_HOST', '')
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
     '0.0.0.0',
+    '9db6-2400-e320-1-4-41f6-33fe-1074-f030.ngrok-free.app',
 ]
 if _railway_host:
     ALLOWED_HOSTS.append(_railway_host)
+if _ngrok_host:
+    ALLOWED_HOSTS.append(_ngrok_host)
 
 
 # Application definition
@@ -71,12 +75,13 @@ MIDDLEWARE = [
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-# In production, restrict CORS to the actual frontend domain.
-# Set env var FRONTEND_URL=https://your-app.vercel.app
 _frontend_url = os.environ.get('FRONTEND_URL', '')
 if _frontend_url and not DEBUG:
     CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = [_frontend_url]
+    CORS_ALLOWED_ORIGINS = [
+        _frontend_url,
+        'https://face-recognition-gamma-teal.vercel.app',
+    ]
 
 ROOT_URLCONF = 'core.urls'
 
