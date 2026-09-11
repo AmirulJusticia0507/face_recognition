@@ -27,6 +27,7 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '0.0.0.0',
     '9db6-2400-e320-1-4-41f6-33fe-1074-f030.ngrok-free.app',
+    'f83f-2400-e320-1-4-41f6-33fe-1074-f030.ngrok-free.app',
 ]
 if _railway_host:
     ALLOWED_HOSTS.append(_railway_host)
