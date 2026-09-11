@@ -10,6 +10,8 @@ whitenoise==6.9.0
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 pymysql==1.1.1
+psycopg2-binary==2.9.9
+dj-database-url==2.2.0
 
 # ─── Face Recognition ─────────────────────────────────────────────────────────
 # deepface pulls tensorflow; pin to avoid pulling full GPU torch build
