@@ -144,6 +144,11 @@ class ModelSetting(models.Model):
     align = models.BooleanField(default=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    llm_provider = models.CharField(max_length=50, default='bazaarlink', verbose_name='LLM Provider')
+    llm_base_url = models.CharField(max_length=255, default='https://api.bazaarlink.ai/v1', verbose_name='LLM Base URL')
+    llm_model_name = models.CharField(max_length=100, default='google/gemini-3.8-flash', verbose_name='LLM Model')
+    llm_api_key = models.CharField(max_length=255, blank=True, default='', verbose_name='LLM API Key')
+
     class Meta:
         verbose_name_plural = 'Model Settings'
 

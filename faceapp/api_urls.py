@@ -32,6 +32,9 @@ urlpatterns = [
     path('model-settings/', v.ModelSettingsView.as_view(), name='api-model-settings'),
     path('model-settings/available/', v.ModelSettingsAvailableView.as_view(), name='api-model-settings-available'),
     path('model-settings/test/', v.ModelSettingsTestView.as_view(), name='api-model-settings-test'),
+    path('model-settings/llm-models/', v.LLMModelListView.as_view(), name='api-model-settings-llm'),
+
+    path('llm/describe-image/', v.LLMDescribeImageView.as_view(), name='api-llm-describe-image'),
 
     path('live-camera/snapshot/', v.LiveCameraSnapshotView.as_view(), name='api-live-camera-snapshot'),
     path('live-camera/snapshots/', v.LiveCameraSnapshotsView.as_view(), name='api-live-camera-snapshots'),

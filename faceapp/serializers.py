@@ -95,7 +95,8 @@ class PoseLogSerializer(serializers.ModelSerializer):
 class ModelSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = ModelSetting
-        fields = ['default_model', 'similarity_threshold', 'detection_backend', 'enforce_detection', 'align']
+        fields = ['default_model', 'similarity_threshold', 'detection_backend', 'enforce_detection', 'align',
+                  'llm_provider', 'llm_base_url', 'llm_model_name', 'llm_api_key']
 
 
 class CameraSerializer(serializers.ModelSerializer):

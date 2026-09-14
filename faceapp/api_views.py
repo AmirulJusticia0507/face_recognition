@@ -667,6 +667,46 @@ class ModelSettingsAvailableView(APIView):
         return Response(AVAILABLE_MODELS)
 
 
+class LLMModelListView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [JSONParser]
+
+    def get(self, request):
+        from .llm import _get_config
+        cfg = _get_config()
+        ms = ModelSetting.get_solo()
+        return Response({
+            'provider': ms.llm_provider,
+            'base_url': ms.llm_base_url,
+            'model': ms.llm_model_name or cfg['model'],
+            'available': ['google/gemini-3.8-flash', 'openai/gpt-4o-mini', 'qwen/qwen3.8-max'],
+        })
+
+
+class LLMDescribeImageView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, JSONParser]
+
+    def post(self, request):
+        photo = request.FILES.get('photo')
+        prompt = request.data.get('prompt', 'Deskripsikan secara singkat apa yang terlihat pada wajah/gambar ini.')
+        if not photo:
+            return Response({'error': 'Foto wajib diunggah.'}, status=400)
+        try:
+            image_bytes = photo.read()
+            from .llm import describe_image
+            ms = ModelSetting.get_solo()
+            description = describe_image(
+                image_bytes,
+                prompt=prompt,
+                base_url=ms.llm_base_url or None,
+                api_key=ms.llm_api_key or None,
+            )
+            return Response({'description': description})
+        except Exception as exc:
+            return Response({'error': 'Gagal memanggil LLM.', 'details': str(exc)}, status=502)
+
+
 class ModelSettingsTestView(APIView):
     permission_classes = [IsAuthenticated]
     parser_classes = [JSONParser]
