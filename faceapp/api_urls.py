@@ -44,8 +44,11 @@ urlpatterns = [
     path('etle-camera/cameras/jogja/', v.JogjaCCTVListView.as_view(), name='api-etle-cameras-jogja'),
     path('etle-camera/detect/', v.EtleCameraDetectView.as_view(), name='api-etle-detect'),
 
-    path('cameras/', v.CameraListCreateView.as_view(), name='api-cameras-list'),
+     path('cameras/', v.CameraListCreateView.as_view(), name='api-cameras-list'),
     path('cameras/<int:pk>/', v.CameraRetrieveUpdateDestroyView.as_view(), name='api-cameras-detail'),
+    path('cameras/<int:pk>/scan/', v.CameraScanNowView.as_view(), name='api-cameras-scan'),
+    path('camera-scans/', v.CameraScanLogListAPIView.as_view(), name='api-camera-scans'),
+    path('camera-scans/status/', v.CameraScanStatusView.as_view(), name='api-camera-scans-status'),
 
     path('violation-logs/', v.ViolationLogsListView.as_view(), name='api-violation-logs'),
     path('violation-logs/stats/', v.ViolationLogsStatsView.as_view(), name='api-violation-logs-stats'),

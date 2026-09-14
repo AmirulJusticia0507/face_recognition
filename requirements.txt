@@ -4,6 +4,10 @@ djangorestframework==3.16.0
 django-cors-headers==4.7.0
 django-widget-tweaks==1.5.0
 
+# ─── ASGI / WebSocket ────────────────────────────────────────────────────────
+channels==4.2.2
+daphne==4.2.1
+
 # ─── Production server & static files ────────────────────────────────────────
 gunicorn==21.2.0
 whitenoise==6.9.0

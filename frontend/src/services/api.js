@@ -165,6 +165,9 @@ export const cameraApi = {
   create: (data) => api.post('/cameras/', data),
   update: (id, data) => api.put(`/cameras/${id}/`, data),
   delete: (id) => api.delete(`/cameras/${id}/`),
+  scan: (id) => api.post(`/cameras/${id}/scan/`),
+  getScanLogs: (params) => api.get('/camera-scans/', { params }),
+  getScanStatus: () => api.get('/camera-scans/status/'),
 }
 
 // CCTV AI-CCTV API (external Jogja Smart Province)

@@ -28,13 +28,14 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from .models import (
     Person, FaceImage, FaceComparisonLog, FaceLog, PoseLog,
-    ViolationLog, ForensicLog, ModelSetting, Camera,
+    ViolationLog, ForensicLog, ModelSetting, Camera, CameraScanLog,
 )
 from .serializers import (
     PersonListSerializer, PersonDetailSerializer, PersonCreateSerializer,
     FaceImageSerializer, FaceComparisonLogSerializer, FaceLogSerializer,
     ViolationLogSerializer, ViolationLogListSerializer, PoseLogSerializer,
     ModelSettingSerializer, ForensicLogSerializer, CameraSerializer,
+    CameraScanLogSerializer,
 )
 from . import face_services
 from .forensics import (
@@ -1439,4 +1440,86 @@ class ForensicAnalysisAPIView(APIView):
             'analysis_text': log.analysis_text,
             'created_at': log.created_at.isoformat(),
         } for log in logs]
+        return Response(data)
+
+
+class CameraScanLogListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+    pagination_class = FlexiblePagination
+
+    def get(self, request):
+        queryset = CameraScanLog.objects.select_related('camera', 'matched_person').all()
+        camera_id = request.query_params.get('camera_id')
+        face_detected = request.query_params.get('face_detected')
+        search = request.query_params.get('search', '')
+
+        if camera_id:
+            queryset = queryset.filter(camera_id=camera_id)
+        if face_detected is not None:
+            queryset = queryset.filter(face_detected=(face_detected == 'true'))
+        if search:
+            queryset = queryset.filter(
+                Q(camera_name__icontains=search) |
+                Q(building__icontains=search) |
+                Q(room__icontains=search)
+            )
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request)
+        serializer = CameraScanLogSerializer(page or [], many=True, context={'request': request})
+        return paginator.get_paginated_response(serializer.data)
+
+
+class CameraScanNowView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk=None):
+        if pk:
+            try:
+                camera = Camera.objects.get(pk=pk)
+            except Camera.DoesNotExist:
+                return Response({'error': 'Camera tidak ditemukan.'}, status=404)
+            cameras = [camera]
+        else:
+            cameras = Camera.objects.filter(auto_scan=True)
+
+        from .camera_scanner import scan_camera
+        results = []
+        for cam in cameras:
+            log = scan_camera(cam, identify=True)
+            item = {'camera_id': cam.id, 'camera_name': cam.name}
+            if log is None:
+                item['status'] = 'error'
+                item['error'] = 'Gagal memindai kamera.'
+            elif log.error_message:
+                item['status'] = 'error'
+                item['error'] = log.error_message
+                item['scan_id'] = log.id
+            else:
+                item['status'] = 'success'
+                item['face_detected'] = log.face_detected
+                item['face_count'] = log.face_count
+                item['matched_person'] = log.matched_person_id
+                item['similarity_percent'] = log.similarity_percent
+                item['scan_id'] = log.id
+            results.append(item)
+
+        return Response({'results': results})
+
+
+class CameraScanStatusView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        cameras = Camera.objects.all().order_by('name')
+        data = [{
+            'id': c.id,
+            'name': c.name,
+            'auto_scan': c.auto_scan,
+            'scan_interval_seconds': c.scan_interval_seconds,
+            'last_scanned_at': c.last_scanned_at.isoformat() if c.last_scanned_at else None,
+            'recent_logs': CameraScanLogSerializer(
+                CameraScanLog.objects.filter(camera=c)[:5],
+                many=True, context={'request': request}).data,
+        } for c in cameras]
         return Response(data)

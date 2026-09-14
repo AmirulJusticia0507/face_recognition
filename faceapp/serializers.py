@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     FaceComparisonLog, ForensicLog, Person, FaceImage,
-    FaceLog, ViolationLog, PoseLog, ModelSetting, Camera,
+    FaceLog, ViolationLog, PoseLog, ModelSetting, Camera, CameraScanLog,
 )
 
 
@@ -104,6 +104,29 @@ class CameraSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'source', 'stream_url',
             'latitude', 'longitude', 'status', 'description',
+            'auto_scan', 'scan_interval_seconds', 'last_scanned_at',
             'building', 'room', 'floor',
             'created_at', 'updated_at',
         ]
+
+
+class CameraScanLogSerializer(serializers.ModelSerializer):
+    person_name = serializers.CharField(source='matched_person.name', read_only=True)
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CameraScanLog
+        fields = [
+            'id', 'camera', 'camera_name', 'building', 'room', 'floor',
+            'stream_url', 'image', 'model_used', 'detection_method',
+            'face_detected', 'face_count', 'matched_person', 'person_name',
+            'similarity_percent', 'raw_result', 'error_message', 'created_at',
+        ]
+
+    def get_image(self, obj):
+        if obj.image and obj.image.name:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.image.url)
+            return obj.image.url
+        return None

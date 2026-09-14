@@ -13,6 +13,11 @@ const latitude = ref('')
 const longitude = ref('')
 const status = ref('online')
 const description = ref('')
+const building = ref('')
+const room = ref('')
+const floor = ref('')
+const auto_scan = ref(false)
+const scan_interval_seconds = ref(30)
 const isEditing = ref(false)
 const cameraId = ref(null)
 
@@ -56,6 +61,11 @@ const saveCamera = async () => {
       longitude: parseFloat(longitude.value) || null,
       status: status.value,
       description: description.value,
+      building: building.value || '',
+      room: room.value || '',
+      floor: floor.value || '',
+      auto_scan: auto_scan.value,
+      scan_interval_seconds: parseInt(scan_interval_seconds.value) || 30,
     }
     let data
     if (isEditing.value) {
@@ -88,6 +98,11 @@ const editCamera = (camera) => {
   longitude.value = camera.longitude != null ? String(camera.longitude) : ''
   status.value = camera.status
   description.value = camera.description || ''
+  building.value = camera.building || ''
+  room.value = camera.room || ''
+  floor.value = camera.floor || ''
+  auto_scan.value = camera.auto_scan || false
+  scan_interval_seconds.value = camera.scan_interval_seconds || 30
   cameraId.value = camera.id
   isEditing.value = true
 }
@@ -103,6 +118,38 @@ const deleteCamera = async (id) => {
   }
 }
 
+const scanNow = async (camera) => {
+  try {
+    const res = await cameraApi.scan(camera.id)
+    const data = res.data.results[0]
+    if (data.status === 'error') {
+      Swal.fire('Error', data.error, 'error')
+    } else {
+      Swal.fire({
+        icon: 'success',
+        title: 'Scan selesai',
+        html: `Wajah terdeteksi: <strong>${data.face_count}</strong><br>
+          Kesamaan: <strong>${data.similarity_percent}%</strong>`,
+        timer: 2000,
+        showConfirmButton: false,
+      })
+      loadCameras()
+    }
+  } catch (err) {
+    Swal.fire('Error', 'Gagal melakukan scan kamera', 'error')
+  }
+}
+
+const toggleAutoScan = async (camera) => {
+  try {
+    await cameraApi.update(camera.id, { auto_scan: !camera.auto_scan })
+    camera.auto_scan = !camera.auto_scan
+    loadCameras()
+  } catch (err) {
+    Swal.fire('Error', 'Gagal mengubah auto-scan', 'error')
+  }
+}
+
 const resetForm = () => {
   name.value = ''
   source.value = 'jogjakota'
@@ -111,6 +158,11 @@ const resetForm = () => {
   longitude.value = ''
   status.value = 'online'
   description.value = ''
+  building.value = ''
+  room.value = ''
+  floor.value = ''
+  auto_scan.value = false
+  scan_interval_seconds.value = 30
   cameraId.value = null
   isEditing.value = false
 }
@@ -158,6 +210,28 @@ const resetForm = () => {
             <label class="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
             <textarea v-model="description" rows="2" class="shadow w-full py-2 rounded"></textarea>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Gedung/Lokasi</label>
+            <input v-model="building" type="text" class="shadow w-full py-2 rounded" placeholder="Misal: Gedung A" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Ruangan</label>
+            <input v-model="room" type="text" class="shadow w-full py-2 rounded" placeholder="Misal: Lantai 2, Ruang 203" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Lantai</label>
+            <input v-model="floor" type="text" class="shadow w-full py-2 rounded" placeholder="Misal: 2" />
+          </div>
+          <div class="flex items-end">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+              <input v-model.bool="auto_scan" type="checkbox" class="h-4 w-4 rounded" />
+              Aktifkan auto-scan otomatis
+            </label>
+          </div>
+          <div v-if="auto_scan" class="flex items-end">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Interval (detik)</label>
+            <input v-model.number="scan_interval_seconds" type="number" min="5" class="shadow w-full py-2 rounded" />
+          </div>
         </div>
         <div class="mt-4 flex justify-end gap-2">
           <button type="button" @click="resetForm" class="px-3 py-1 text-sm text-gray-500 hover:bg-gray-100">Batal</button>
@@ -178,8 +252,11 @@ const resetForm = () => {
           <tr class="bg-gray-100 text-xs text-gray-500 uppercase">
             <th>#</th>
             <th>Nama</th>
-            <th>Sumber</th>
-            <th>Status</th>
+            <th>Lokasi</th>
+            <th>Ruangan</th>
+            <th>Stream URL</th>
+            <th>Auto Scan</th>
+            <th>Scan Terakhir</th>
             <th>Aksi</th>
           </tr>
         </thead>
@@ -187,13 +264,18 @@ const resetForm = () => {
           <tr v-for="(cam, i) in cameras" :key="cam.id">
             <td class="text-gray-500">{{ i + 1 }}</td>
             <td class="font-medium">{{ cam.name }}</td>
-            <td><span class="capitalize">{{ cam.source }}</span></td>
+            <td>{{ cam.building || '-' }}</td>
+            <td>{{ cam.room || '-' }}</td>
+            <td class="text-xs text-gray-500 truncate max-w-xs">{{ cam.stream_url || '-' }}</td>
             <td>
-              <span :class="['px-2', 'py-1', 'rounded', cam.status === 'online' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800']">
-                {{ cam.status }}
-              </span>
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" :checked="cam.auto_scan" @change="toggleAutoScan(cam)" class="h-4 w-4 rounded" />
+                {{ cam.scan_interval_seconds || 30 }}s
+              </label>
             </td>
+            <td class="text-xs text-gray-400">{{ cam.last_scanned_at ? new Date(cam.last_scanned_at).toLocaleString() : '-' }}</td>
             <td class="text-right">
+              <button @click="scanNow(cam)" class="text-green-600 text-sm hover:underline mr-2">Scan</button>
               <button @click="editCamera(cam)" class="text-primary-600 text-sm hover:underline">Edit</button>
               <button @click="deleteCamera(cam.id)" class="text-red-600 text-sm hover:underline ml-2">Hapus</button>
             </td>

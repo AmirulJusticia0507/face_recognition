@@ -1,6 +1,24 @@
 from django.contrib import admin
 
-from .models import FaceComparisonLog, FaceLog, PoseLog, ViolationLog, Person, FaceImage, ForensicLog
+from .models import (
+    FaceComparisonLog, FaceLog, PoseLog, ViolationLog, Person, FaceImage,
+    ForensicLog, Camera, CameraScanLog,
+)
+
+
+@admin.register(Camera)
+class CameraAdmin(admin.ModelAdmin):
+    list_display = ['name', 'source', 'status', 'building', 'room', 'floor', 'auto_scan', 'scan_interval_seconds', 'last_scanned_at']
+    list_filter = ['status', 'source', 'auto_scan']
+    search_fields = ['name', 'stream_url', 'building', 'room']
+
+
+@admin.register(CameraScanLog)
+class CameraScanLogAdmin(admin.ModelAdmin):
+    list_display = ['id', 'camera_name', 'building', 'room', 'face_detected', 'face_count', 'model_used', 'created_at']
+    list_filter = ['face_detected', 'model_used', 'detection_method', 'created_at']
+    search_fields = ['camera_name', 'building', 'room']
+    date_hierarchy = 'created_at'
 
 
 @admin.register(Person)

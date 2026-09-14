@@ -1,11 +1,12 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSidebarStore } from '../../stores/sidebar'
 import { useAuthStore } from '../../stores/auth'
 import { useDarkModeStore } from '../../stores/darkMode'
 import { performLogout } from '../../services/sso'
 import { dashboardApi } from '../../services/api'
-import { useRouter } from 'vue-router'
+import { detectionSocket } from '../../composables/useDetectionSocket'
 
 const sidebarStore = useSidebarStore()
 const authStore = useAuthStore()
@@ -71,10 +72,32 @@ const handleOutsideClick = (e) => {
 onMounted(() => {
   document.addEventListener('click', handleOutsideClick)
   fetchNotifications()
+  detectionSocket.connect()
 })
 onUnmounted(() => {
   document.removeEventListener('click', handleOutsideClick)
+  detectionSocket.disconnect()
 })
+
+watch(
+  () => detectionSocket.notifications.value,
+  (value) => {
+    if (value && value.length) {
+      const latest = value[0]
+      if (!notifications.value.find(n => n.id === `ws-${latest.timestamp}`)) {
+        notifications.value.unshift({
+          id: `ws-${latest.timestamp}`,
+          type: 'camera',
+          description: `Wajah terdeteksi: ${latest.face_count} (${latest.camera_name}${latest.matched_person ? ' - ' + latest.matched_person.name : ''})`,
+          timestamp: latest.timestamp,
+          raw: latest,
+        })
+        notifRead.value = false
+      }
+    }
+  },
+  { immediate: false }
+)
 
 const userMenuEl = ref(null)
 

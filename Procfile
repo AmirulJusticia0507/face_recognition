@@ -1,1 +1,2 @@
-web: gunicorn core.wsgi:application --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120
+web: daphne -b 0.0.0.0 -p ${PORT:-8080} core.asgi:application --lifespan off
+scan: python manage.py run_camera_scans

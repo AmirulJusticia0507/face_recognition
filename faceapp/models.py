@@ -162,6 +162,7 @@ class Camera(models.Model):
         ('sleman', 'Sleman (24jam.slemankab.go.id)'),
         ('bantul', 'Bantul (bantulkab.go.id)'),
         ('ai_cctv', 'AI CCTV External'),
+        ('custom', 'Stream URL Custom'),
     ]
     STATUS_CHOICES = [
         ('online', 'Online'),
@@ -179,6 +180,11 @@ class Camera(models.Model):
     building = models.CharField(max_length=100, blank=True, null=True, verbose_name='Gedung/Lokasi')
     room = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ruangan')
     floor = models.CharField(max_length=20, blank=True, null=True, verbose_name='Lantai')
+
+    auto_scan = models.BooleanField(default=False, verbose_name='Scan Otomatis Aktif')
+    scan_interval_seconds = models.PositiveIntegerField(default=30, verbose_name='Interval Scan (detik)')
+    last_scanned_at = models.DateTimeField(blank=True, null=True, verbose_name='Scan Terakhir')
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -186,4 +192,52 @@ class Camera(models.Model):
         ordering = ['name']
 
     def __str__(self):
-        return f"{self.name} ({self.get_source_display})"
+        return f"{self.name} ({self.get_source_display()})"
+
+
+class CameraScanLog(models.Model):
+    DETECTION_METHOD_CHOICES = [
+        ('haar', 'Haar Cascade'),
+        ('yolo', 'YOLO'),
+        ('mtcnn', 'MTCNN'),
+        ('opencv_dnn', 'OpenCV DNN'),
+    ]
+
+    camera = models.ForeignKey(
+        Camera, on_delete=models.SET_NULL, related_name='scan_logs',
+        null=True, blank=True, verbose_name='Kamera',
+    )
+    camera_name = models.CharField(max_length=100, verbose_name='Nama Kamera')
+    building = models.CharField(max_length=100, blank=True, null=True, verbose_name='Gedung/Lokasi')
+    room = models.CharField(max_length=100, blank=True, null=True, verbose_name='Ruangan')
+    floor = models.CharField(max_length=20, blank=True, null=True, verbose_name='Lantai')
+    stream_url = models.TextField(blank=True, null=True, verbose_name='Stream URL')
+    image = models.ImageField(upload_to='camera_scans/')
+    model_used = models.CharField(max_length=50, verbose_name='Model Deteksi')
+    face_detected = models.BooleanField(default=False, verbose_name='Wajah Terdeteksi')
+    face_count = models.PositiveIntegerField(default=0, verbose_name='Jumlah Wajah')
+    matched_person = models.ForeignKey(
+        Person, on_delete=models.SET_NULL, related_name='camera_scan_matches',
+        null=True, blank=True, verbose_name='Orang Cocok',
+    )
+    similarity_percent = models.FloatField(default=0.0, verbose_name='Kesamaan (%)')
+    detection_method = models.CharField(
+        max_length=20, choices=DETECTION_METHOD_CHOICES, default='opencv_dnn',
+        verbose_name='Metode Deteksi',
+    )
+    raw_result = models.JSONField(default=dict, verbose_name='Hasil Mentah')
+    error_message = models.TextField(blank=True, null=True, verbose_name='Pesan Error')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Waktu Scan')
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Log Scan Kamera'
+        verbose_name_plural = 'Log Scan Kamera'
+
+    def __str__(self):
+        return f"Scan {self.camera_name} @ {self.created_at.strftime('%Y-%m-%d %H:%M:%S')}"
+
+    def delete(self, *args, **kwargs):
+        if self.image and self.image.name:
+            self.image.delete(save=False)
+        super().delete(*args, **kwargs)
