@@ -968,6 +968,27 @@ ETLE_CAMERAS = [
 ]
 
 
+def _jogjaprov_location_pins_to_cameras(data):
+    cameras = []
+    for item in data.get('data', []):
+        attrs = item.get('attributes') or {}
+        stream = attrs.get('stream_url')
+        lat = attrs.get('lat')
+        lng = attrs.get('lng')
+        if attrs.get('pin_type') != 'cctv' or not stream or lat is None or lng is None:
+            continue
+        cameras.append({
+            'id': item.get('id', ''),
+            'name': attrs.get('alias_name') or attrs.get('name') or f"Camera {item.get('id', '')}",
+            'lat': float(lat),
+            'lng': float(lng),
+            'source': attrs.get('group_name') or 'jogjaprov',
+            'stream': stream,
+            'status': 'online' if attrs.get('connected') and not attrs.get('disabled') else 'offline',
+        })
+    return cameras
+
+
 class EtleCameraListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -980,26 +1001,14 @@ class JogjaCCTVListView(APIView):
     def get(self, request):
         try:
             resp = requests.get(
-                'https://cctv.jogjakota.go.id/home/getdata',
+                'https://cctv.jogjaprov.go.id/api/v1/location-pins',
                 timeout=10,
-                headers={'Accept': 'application/json'}
+                headers={'Accept': 'application/vnd.api+json'}
             )
             if resp.status_code == 200:
-                data = resp.json()
-                cameras = []
-                for cam in data:
-                    link = cam.get('cctv_link', '')
-                    status = cam.get('cctv_status', '0')
-                    cameras.append({
-                        'id': cam.get('cctv_id', ''),
-                        'name': cam.get('cctv_title', ''),
-                        'lat': float(cam.get('cctv_latitude', 0)) if cam.get('cctv_latitude') else None,
-                        'lng': float(cam.get('cctv_longitude', 0)) if cam.get('cctv_longitude') else None,
-                        'source': 'jogjakota',
-                        'stream': link.replace('https://cctvjss.jogjakota.go.id/', 'https://cctv.jogjakota.go.id/').replace('/playlist.m3u8', '') if link else '',
-                        'status': 'online' if status == '0' else 'offline',
-                    })
-                return Response(cameras[:20])
+                cameras = _jogjaprov_location_pins_to_cameras(resp.json())
+                if cameras:
+                    return Response(cameras)
         except Exception as e:
             pass
         return Response(ETLE_CAMERAS)

@@ -8,6 +8,7 @@ from django.urls import reverse
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
+from .api_views import _jogjaprov_location_pins_to_cameras
 from .camera_scanner import detect_faces_in_frame
 from .management.commands.run_camera_scans import Command as ScanCommand
 from .models import Camera, CameraScanLog
@@ -88,6 +89,35 @@ class CameraScanLogTests(TestCase):
             model_used='haar',
         )
         self.assertEqual(log.face_detected, False)
+
+
+class JogjaprovCCTVTests(TestCase):
+    def test_location_pins_are_normalized_to_cameras(self):
+        cameras = _jogjaprov_location_pins_to_cameras({
+            'data': [
+                {'id': '1', 'attributes': {'pin_type': 'event', 'stream_url': None}},
+                {
+                    'id': '809',
+                    'attributes': {
+                        'pin_type': 'cctv',
+                        'alias_name': 'Simpang APMD',
+                        'name': 'APMD',
+                        'group_name': 'Dinas Kominfosan Yogyakarta',
+                        'stream_url': 'https://cctv.jogjaprov.go.id/cctv-proxy/atcs-kota/APMD.stream/playlist.m3u8',
+                        'lat': -7.79254456,
+                        'lng': 110.39314845,
+                        'connected': True,
+                        'disabled': False,
+                    },
+                },
+            ],
+        })
+
+        self.assertEqual(len(cameras), 1)
+        self.assertEqual(cameras[0]['id'], '809')
+        self.assertEqual(cameras[0]['name'], 'Simpang APMD')
+        self.assertEqual(cameras[0]['source'], 'Dinas Kominfosan Yogyakarta')
+        self.assertEqual(cameras[0]['status'], 'online')
 
 
 class FaceDetectionTests(TestCase):

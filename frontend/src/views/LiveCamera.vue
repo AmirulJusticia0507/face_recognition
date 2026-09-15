@@ -1,12 +1,9 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { liveCameraApi } from '../services/api'
+import { etleCameraApi, liveCameraApi } from '../services/api'
 import Swal from 'sweetalert2'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-
-const CCTV_API = import.meta.env.VITE_API_URL || ''
-const MINIO_URL = import.meta.env.VITE_MINIO_URL || ''
 
 const mapRef = ref(null)
 let map = null
@@ -46,43 +43,12 @@ const filteredCameras = ref(defaultCameras)
 const fetchCameras = async () => {
   loading.value = true
   try {
-    // Gateway SPL berubah: endpoint pindah dari /ai-cctv/api/devices/ (404)
-    // ke /ai-cctv/devices tanpa prefix /api. Respons: { data: [...], message }.
-    const response = await fetch(CCTV_API + 'devices', {
-      headers: { 'Accept': 'application/json' }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      const list = data.data || data.results || data
-      const apiCameras = (Array.isArray(list) ? list : []).map((cam, i) => {
-        // coordinate format API: "lat, lng" (string, bisa kosong)
-        let lat = jogjaCenter[0], lng = jogjaCenter[1]
-        if (typeof cam.coordinate === 'string' && cam.coordinate.includes(',')) {
-          const [la, ln] = cam.coordinate.split(',').map(Number)
-          if (Number.isFinite(la) && Number.isFinite(ln)) { lat = la; lng = ln }
-        } else {
-          lat = parseFloat(cam.lat || cam.latitude || lat)
-          lng = parseFloat(cam.lng || cam.longitude || lng)
-        }
-        return {
-          id: cam.id || i + 100,
-          name: cam.location || cam.name || cam.type || `Camera ${i + 1}`,
-          lat,
-          lng,
-          source: cam.source || 'ai-cctv',
-          stream: cam.link || cam.stream_url || cam.stream || '',
-          status: cam.status || 'unknown',
-        }
-      })
-      if (apiCameras.length > 0) {
-        defaultCameras.push(...apiCameras)
-      }
-    }
-  } catch (err) {
-    console.warn('CCTV API not available, using default cameras')
+    const res = await etleCameraApi.getJogjaCameras()
+    cameras.value = res.data || []
+  } catch {
+    cameras.value = defaultCameras
   } finally {
-    loading.value = false
-    filteredCameras.value = [...defaultCameras]
+    filteredCameras.value = [...cameras.value]
     loading.value = false
   }
 }
@@ -138,7 +104,7 @@ const selectCamera = (cam) => {
 
 const filterCameras = () => {
   const q = searchQuery.value.toLowerCase()
-  filteredCameras.value = defaultCameras.filter(c =>
+  filteredCameras.value = cameras.value.filter(c =>
     c.name.toLowerCase().includes(q) || c.source.toLowerCase().includes(q)
   )
   addMarkers(filteredCameras.value)
