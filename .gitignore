@@ -5,6 +5,11 @@ __pycache__/
 
 # Virtual environment
 venv/
+venv311/
+venv*/
+.venv/
+env/
+ENV/
 
 # Environment variables
 .env
@@ -32,3 +37,8 @@ media/tmp_test.jpg
 
 # IDE
 .vscode/
+
+# Agent / tooling local state (jangan commit)
+.commandcode/
+.opencode/
+.openai/
