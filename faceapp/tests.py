@@ -1,13 +1,71 @@
-import numpy as np
 from io import StringIO
+
+import numpy as np
+from django.contrib.auth.models import User
+from django.core import mail
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APIClient
 
+from .camera_scanner import detect_faces_in_frame
 from .management.commands.run_camera_scans import Command as ScanCommand
 from .models import Camera, CameraScanLog
-from .camera_scanner import detect_faces_in_frame
+
+
+@override_settings(
+    SECURE_SSL_REDIRECT=False,
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    FRONTEND_URL='http://localhost:5173',
+)
+class AuthAPITests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_signup_login_by_email_and_password_reset(self):
+        register_response = self.client.post(reverse('api-auth-register'), {
+            'username': 'authuser',
+            'email': 'auth@example.com',
+            'password': 'StrongPassword123!',
+        }, format='json')
+        self.assertEqual(register_response.status_code, 201)
+
+        login_response = self.client.post(reverse('api-auth-login'), {
+            'username': 'auth@example.com',
+            'password': 'StrongPassword123!',
+        }, format='json')
+        self.assertEqual(login_response.status_code, 200)
+
+        forgot_response = self.client.post(reverse('api-auth-forgot-password'), {
+            'email': 'auth@example.com',
+        }, format='json')
+        self.assertEqual(forgot_response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 1)
+
+        user = User.objects.get(username='authuser')
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        reset_response = self.client.post(reverse('api-auth-reset-password'), {
+            'uid': uid,
+            'token': token,
+            'password': 'NewStrongPassword123!',
+            'confirm_password': 'NewStrongPassword123!',
+        }, format='json')
+        self.assertEqual(reset_response.status_code, 200)
+
+        old_login = self.client.post(reverse('api-auth-login'), {
+            'username': 'authuser',
+            'password': 'StrongPassword123!',
+        }, format='json')
+        new_login = self.client.post(reverse('api-auth-login'), {
+            'username': 'authuser',
+            'password': 'NewStrongPassword123!',
+        }, format='json')
+        self.assertEqual(old_login.status_code, 401)
+        self.assertEqual(new_login.status_code, 200)
 
 
 @override_settings(SECURE_SSL_REDIRECT=False)

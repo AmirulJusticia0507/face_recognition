@@ -1,4 +1,5 @@
 <script setup>
+import { push } from 'notivue'
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { authApi } from '../services/api'
@@ -11,16 +12,16 @@ const showPassword = ref(false)
 const register = async () => {
   if (!form.value.username || !form.value.email || !form.value.password) return
   if (form.value.password !== form.value.confirmPassword) {
-    alert('Passwords do not match')
+    push.error({ title: 'Signup gagal', message: 'Konfirmasi password tidak sama.' })
     return
   }
   loading.value = true
   try {
     await authApi.register(form.value)
-    alert('Registration successful! Please login.')
+    push.success({ title: 'Signup berhasil', message: 'Akun berhasil dibuat. Silakan login.' })
     router.push('/login')
   } catch (error) {
-    alert(error.response?.data?.error || 'Registration failed')
+    push.error({ title: 'Signup gagal', message: error.response?.data?.error || 'Registrasi gagal.' })
   } finally {
     loading.value = false
   }

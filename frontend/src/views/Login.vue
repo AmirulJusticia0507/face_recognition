@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { push } from 'notivue'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { authApi } from '../services/api'
 import { goGoogleLogin } from '../services/sso'
-import { push } from 'notivue'
 
 const router = useRouter()
 const route = useRoute()
@@ -168,9 +168,9 @@ onMounted(() => {
             <router-link to="/register" class="text-primary-600 hover:text-primary-700 font-medium">
               Create an account
             </router-link>
-            <a href="#" class="text-gray-500 hover:text-gray-700">
+            <router-link to="/forgot-password" class="text-gray-500 hover:text-gray-700">
               Forgot password?
-            </a>
+            </router-link>
           </div>
         </div>
       </div>

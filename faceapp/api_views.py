@@ -1,48 +1,51 @@
-import os
-import uuid
-import time
 import base64
+import os
 import tempfile
-from typing import cast
-import requests
+import time
+import uuid
 from datetime import timedelta
+from typing import cast
 
 import cv2
 import cv2.data
 import numpy as np
-from django.utils import timezone
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate
-from django.core.files.base import ContentFile
+import requests
 from django.conf import settings
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.mail import send_mail
+from django.core.validators import validate_email
 from django.db.models import Count, Q
+from django.utils import timezone
 from django.utils.dateparse import parse_date
-
-from rest_framework import status, generics
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser, JSONParser
-from rest_framework.pagination import PageNumberPagination
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from rest_framework import generics, status
 from rest_framework.authtoken.models import Token
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from .models import (
-    Person, FaceImage, FaceComparisonLog, FaceLog, PoseLog,
-    ViolationLog, ForensicLog, ModelSetting, Camera, CameraScanLog,
-)
-from .serializers import (
-    PersonListSerializer, PersonDetailSerializer, PersonCreateSerializer,
-    FaceImageSerializer, FaceComparisonLogSerializer, FaceLogSerializer,
-    ViolationLogSerializer, ViolationLogListSerializer, PoseLogSerializer,
-    ModelSettingSerializer, ForensicLogSerializer, CameraSerializer,
-    CameraScanLogSerializer,
-)
 from . import face_services
-from .forensics import (
-    analyze_ela, analyze_noise, analyze_sharpening,
-    analyze_median_filter, analyze_jpeg_ghost, analyze_copy_move, analyze_metadata,
-)
-from deepface import DeepFace
+from .forensics import (analyze_copy_move, analyze_ela, analyze_jpeg_ghost,
+                        analyze_median_filter, analyze_metadata, analyze_noise,
+                        analyze_sharpening)
+from .models import (Camera, CameraScanLog, FaceComparisonLog, FaceImage,
+                     FaceLog, ForensicLog, ModelSetting, Person, PoseLog,
+                     ViolationLog)
+from .serializers import (CameraScanLogSerializer, CameraSerializer,
+                          FaceComparisonLogSerializer, FaceImageSerializer,
+                          FaceLogSerializer, ForensicLogSerializer,
+                          ModelSettingSerializer, PersonCreateSerializer,
+                          PersonDetailSerializer, PersonListSerializer,
+                          PoseLogSerializer, ViolationLogListSerializer,
+                          ViolationLogSerializer)
 
 
 class FlexiblePagination(PageNumberPagination):
@@ -117,7 +120,12 @@ class AuthLoginView(APIView):
         if not username or not password:
             return Response({'error': 'Username dan password wajib diisi.'}, status=400)
 
-        user = authenticate(username=username, password=password)
+        login_username = username.strip()
+        if '@' in login_username:
+            matched_user = User.objects.filter(email__iexact=login_username).first()
+            login_username = matched_user.username if matched_user else login_username
+
+        user = authenticate(username=login_username, password=password)
         if user is None:
             return Response({'error': 'Username atau password salah.'}, status=401)
         # authenticate() bertipe AbstractBaseUser; di project ini selalu User
@@ -141,17 +149,95 @@ class AuthRegisterView(APIView):
 
     def post(self, request):
         username = request.data.get('username')
-        email = request.data.get('email')
+        email = str(request.data.get('email') or '').strip().lower()
         password = request.data.get('password')
 
-        if not username or not password:
-            return Response({'error': 'Username dan password wajib diisi.'}, status=400)
+        if not username or not email or not password:
+            return Response({'error': 'Username, email, dan password wajib diisi.'}, status=400)
+        try:
+            validate_email(email)
+            if User.objects.filter(username__iexact=username.strip()).exists():
+                raise ValidationError('Username sudah digunakan.')
+            if User.objects.filter(email__iexact=email).exists():
+                raise ValidationError('Email sudah digunakan.')
+            validate_password(password)
+        except ValidationError as exc:
+            return Response({'error': ' '.join(exc.messages)}, status=400)
+
+        username = username.strip()
         if User.objects.filter(username=username).exists():
             return Response({'error': 'Username sudah digunakan.'}, status=400)
 
         user = User.objects.create_user(username=username, email=email or '', password=password)
         Token.objects.create(user=user)
         return Response({'success': True, 'message': 'Registrasi berhasil.'}, status=201)
+
+
+class AuthForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser]
+
+    def post(self, request):
+        email = str(request.data.get('email') or '').strip().lower()
+        generic_response = {
+            'success': True,
+            'message': 'Jika email terdaftar, link reset password sudah dikirim.',
+        }
+        if not email:
+            return Response({'error': 'Email wajib diisi.'}, status=400)
+
+        user = User.objects.filter(email__iexact=email, is_active=True).first()
+        if not user:
+            return Response(generic_response)
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        frontend_url = getattr(settings, 'FRONTEND_URL', '').rstrip('/') or 'http://localhost:5173'
+        reset_url = f'{frontend_url}/reset-password/{uid}/{token}'
+        send_mail(
+            'Reset password FaceAI',
+            f'Gunakan link berikut untuk membuat password baru:\n\n{reset_url}\n\nLink ini hanya berlaku sementara.',
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+
+        if getattr(settings, 'EMAIL_BACKEND', '').endswith('console.EmailBackend'):
+            generic_response['reset_link'] = reset_url
+        return Response(generic_response)
+
+
+class AuthResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser]
+
+    def post(self, request):
+        uid = str(request.data.get('uid') or '')
+        token = str(request.data.get('token') or '')
+        password = request.data.get('password')
+        confirm_password = request.data.get('confirm_password')
+        if not uid or not token or not password or not confirm_password:
+            return Response({'error': 'Data reset password belum lengkap.'}, status=400)
+        if password != confirm_password:
+            return Response({'error': 'Konfirmasi password tidak sama.'}, status=400)
+
+        try:
+            user = User.objects.get(pk=force_str(urlsafe_base64_decode(uid)))
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            return Response({'error': 'Link reset password tidak valid atau sudah kedaluwarsa.'}, status=400)
+
+        if not default_token_generator.check_token(user, token):
+            return Response({'error': 'Link reset password tidak valid atau sudah kedaluwarsa.'}, status=400)
+        try:
+            validate_password(password, user)
+        except ValidationError as exc:
+            return Response({'error': ' '.join(exc.messages)}, status=400)
+
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        if hasattr(user, 'auth_token'):
+            user.auth_token.delete()
+        return Response({'success': True, 'message': 'Password berhasil diubah. Silakan login.'})
 
 
 class AuthLogoutView(APIView):
@@ -442,6 +528,8 @@ class FaceCompareAPIView(APIView):
             with open(tmp_b_path, 'rb') as f:
                 data_b = f.read()
 
+            from deepface import DeepFace
+
             result = DeepFace.verify(
                 tmp_a_path, tmp_b_path,
                 model_name=model_name,
@@ -722,6 +810,8 @@ class ModelSettingsTestView(APIView):
         try:
             dummy = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
             cv2.imwrite(tmp_path, dummy)
+
+            from deepface import DeepFace
 
             start = time.time()
             DeepFace.represent(
@@ -1138,6 +1228,7 @@ class ViolationLogsExportCSVView(APIView):
     def get(self, request):
         import csv
         import io
+
         from django.http import HttpResponse
 
         queryset = ViolationLog.objects.all().order_by('-violation_time')

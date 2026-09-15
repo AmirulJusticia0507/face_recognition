@@ -1,9 +1,12 @@
 from django.urls import path
+
 from . import api_views as v
 
 urlpatterns = [
     path('auth/login/', v.AuthLoginView.as_view(), name='api-auth-login'),
     path('auth/register/', v.AuthRegisterView.as_view(), name='api-auth-register'),
+    path('auth/forgot-password/', v.AuthForgotPasswordView.as_view(), name='api-auth-forgot-password'),
+    path('auth/reset-password/', v.AuthResetPasswordView.as_view(), name='api-auth-reset-password'),
     path('auth/logout/', v.AuthLogoutView.as_view(), name='api-auth-logout'),
     path('auth/profile/', v.AuthProfileView.as_view(), name='api-auth-profile'),
     path('auth/change-password/', v.AuthChangePasswordView.as_view(), name='api-auth-change-password'),

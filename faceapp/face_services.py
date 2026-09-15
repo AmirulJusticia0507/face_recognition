@@ -6,8 +6,6 @@ from typing import Optional, TypedDict
 from django.conf import settings
 from django.core.files.base import ContentFile
 
-from deepface import DeepFace
-
 from .models import FaceImage, Person
 
 
@@ -35,6 +33,8 @@ def face_db_has_images():
 
 
 def validate_face(image_path, detector_backend='opencv'):
+    from deepface import DeepFace
+
     faces = DeepFace.extract_faces(
         img_path=image_path,
         detector_backend=detector_backend,
@@ -72,6 +72,8 @@ def save_face_image(person, upload, detector_backend='opencv'):
 
 def find_best_match(image_path, model_name='ArcFace', detector_backend='opencv',
                      enforce_detection=True, align=True) -> Optional[FaceMatchResult]:
+    from deepface import DeepFace
+
     if not face_db_has_images():
         return None
 

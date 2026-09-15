@@ -23,8 +23,6 @@ from .forms import PersonForm
 from .serializers import FaceComparisonLogSerializer
 from . import face_services
 from .forensics import analyze_ela, analyze_noise, analyze_sharpening, analyze_median_filter, analyze_jpeg_ghost, analyze_copy_move, analyze_metadata
-from deepface import DeepFace
-
 # Dummy pose score function
 def calculate_pose_score_from_angle(pitch, yaw, roll):
     max_angle = 30
@@ -79,6 +77,8 @@ class FaceCompareView(APIView):
                 f.write(chunk)
 
         try:
+            from deepface import DeepFace
+
             result = DeepFace.verify(foto_a_path, foto_b_path, model_name=model_name)
             similarity = result.get("distance")
             threshold = result.get("threshold")

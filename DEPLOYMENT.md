@@ -3,7 +3,7 @@
 Arsitektur deployment split:
 - **Frontend (Vue 3)** → Vercel (static hosting)
 - **Backend (Django)** → Railway (persistent container)
-- **Database** → Railway MySQL plugin
+- **Database** → Railway PostgreSQL plugin
 - **Media Storage** → Cloudflare R2 / AWS S3 (**wajib** — Railway filesystem ephemeral)
 
 ---
@@ -44,16 +44,12 @@ Arsitektur deployment split:
 3. Pilih repo `face_recognition`
 4. Railway otomatis membaca `railway.toml` dan `Procfile`
 
-### 1.2 Tambah MySQL Database
+### 1.2 Tambah PostgreSQL Database
 
-1. Di project Railway → **+ New Service** → **Database** → **MySQL**
-2. Railway otomatis inject environment variables berikut ke semua service dalam project:
+1. Di project Railway → **+ New Service** → **Database** → **PostgreSQL**
+2. Railway otomatis inject `DATABASE_URL` ke semua service dalam project:
    ```
-   MYSQL_HOST
-   MYSQL_USER
-   MYSQL_PASSWORD
-   MYSQL_DATABASE
-   MYSQL_PORT
+    DATABASE_URL
    ```
    Tidak perlu diisi manual — sudah tersambung otomatis.
 
@@ -68,7 +64,7 @@ Di service Django → tab **Variables**, tambahkan:
 | `FRONTEND_URL` | `https://nama-app.vercel.app` | Diisi setelah Vercel deploy |
 | `RAILWAY_PUBLIC_DOMAIN` | (otomatis) | Di-inject Railway, untuk ALLOWED_HOSTS |
 
-> **Catatan:** `MYSQL_*` variables sudah otomatis tersedia dari MySQL plugin, tidak perlu diisi ulang.
+> **Catatan:** `DATABASE_URL` sudah otomatis tersedia dari PostgreSQL plugin, tidak perlu diisi ulang.
 
 ### 1.4 Jalankan Migrasi
 
@@ -216,12 +212,8 @@ SECRET_KEY=your-very-long-random-secret-key-here
 DEBUG=False
 FRONTEND_URL=https://your-app.vercel.app
 
-# Database (otomatis dari MySQL plugin Railway)
-MYSQL_DATABASE=railway
-MYSQL_USER=root
-MYSQL_PASSWORD=...
-MYSQL_HOST=...
-MYSQL_PORT=3306
+# Database (otomatis dari PostgreSQL plugin Railway)
+DATABASE_URL=postgresql://user:password@host:5432/database
 
 # Media Storage (jika pakai S3/R2)
 USE_S3=True

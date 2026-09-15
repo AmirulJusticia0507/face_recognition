@@ -1,5 +1,5 @@
 # ─── Web Framework ────────────────────────────────────────────────────────────
-Django==6.1.1
+Django==5.2.17
 djangorestframework==3.16.0
 django-cors-headers==4.7.0
 django-widget-tweaks==1.5.0
@@ -13,8 +13,7 @@ gunicorn==21.2.0
 whitenoise==6.9.0
 
 # ─── Database ─────────────────────────────────────────────────────────────────
-pymysql==1.1.1
-psycopg2-binary==2.9.9
+psycopg2-binary==2.9.10
 dj-database-url==2.2.0
 
 # ─── Face Recognition ─────────────────────────────────────────────────────────

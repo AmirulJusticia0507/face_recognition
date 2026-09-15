@@ -3,9 +3,11 @@ Django settings for core project.
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -87,6 +89,7 @@ MIDDLEWARE = [
 CORS_ALLOW_ALL_ORIGINS = True
 
 _frontend_url = os.environ.get('FRONTEND_URL', '')
+FRONTEND_URL = _frontend_url or 'http://localhost:5173'
 if _frontend_url and not DEBUG:
     CORS_ALLOW_ALL_ORIGINS = False
     CORS_ALLOWED_ORIGINS = [
@@ -96,6 +99,7 @@ if _frontend_url and not DEBUG:
 
 # Allow ngrok browser warning bypass header
 from corsheaders.defaults import default_headers
+
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'ngrok-skip-browser-warning',
 ]
@@ -124,36 +128,25 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 # ─── DATABASE ────────────────────────────────────────────────────────────────
-# Priority: DATABASE_URL (Postgres/Fly) > MYSQL_* env vars > SQLite (local dev)
+# PostgreSQL is used in every environment. Production should provide DATABASE_URL;
+# local development can use the POSTGRES_* variables below.
 _database_url = os.environ.get('DATABASE_URL', '')
-_mysql_host = os.environ.get('MYSQL_HOST', '')
 
 if _database_url:
-    # Fly.io Postgres atau DATABASE_URL apapun
+    # Railway, Fly.io, Render, or another managed PostgreSQL provider.
     import dj_database_url
     DATABASES = {'default': dj_database_url.parse(_database_url, conn_max_age=600)}
-elif _mysql_host:
-    # Railway MySQL
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': os.environ.get('MYSQL_DATABASE', 'db_face_recognition'),
-            'USER': os.environ.get('MYSQL_USER', 'root'),
-            'PASSWORD': os.environ.get('MYSQL_PASSWORD', ''),
-            'HOST': _mysql_host,
-            'PORT': os.environ.get('MYSQL_PORT', '3306'),
-            'OPTIONS': {
-                'charset': 'utf8mb4',
-                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            },
-        }
-    }
 else:
-    # Local dev — SQLite
+    # Local development — PostgreSQL server on localhost.
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'face_recognition'),
+            'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', ''),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+            'CONN_MAX_AGE': 600,
         }
     }
 
@@ -240,3 +233,16 @@ if _railway_host:
 if _frontend_url:
     _csrf_origins.append(_frontend_url)
 CSRF_TRUSTED_ORIGINS = _csrf_origins
+
+# Local development prints reset links in the Django console. Production can
+# switch to SMTP by setting EMAIL_HOST and the related email environment vars.
+EMAIL_BACKEND = os.environ.get(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.smtp.EmailBackend' if os.environ.get('EMAIL_HOST') else 'django.core.mail.backends.console.EmailBackend',
+)
+EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True') == 'True'
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'noreply@faceai.local')

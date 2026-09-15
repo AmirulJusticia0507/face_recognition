@@ -41,11 +41,11 @@ manajemen model, serta roles & users.
 ## Tech Stack
 
 ### Backend
-- Python 3.11 (deploy; lokal 3.13 juga jalan), Django 6.1.1, DRF 3.16
+- Python 3.11 (deploy dan local), Django 5.2.17, DRF 3.16
 - DeepFace 0.0.93 — default ArcFace; tersedia Facenet, VGG-Face, OpenFace,
   DeepFace, DeepID, Dlib
 - opencv-python-headless 4.10, torch **CPU-only** + tensorflow-cpu (hemat ukuran install)
-- MySQL via pymysql; `django-storages` + boto3 untuk media S3/R2 (production)
+- PostgreSQL via psycopg2; `django-storages` + boto3 untuk media S3/R2 (production)
 - gunicorn + whitenoise (production)
 
 ### Frontend (`frontend/`)
@@ -72,8 +72,14 @@ pip install -r requirements.txt
 # 3. (Opsional, untuk develop) dependensi tambahan lokal
 pip install -r requirements-dev.txt
 
-# 4. Siapkan database MySQL
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS db_face_recognition CHARACTER SET utf8mb4"
+# 4. Siapkan database PostgreSQL
+# Salin .env.example menjadi .env, lalu sesuaikan password PostgreSQL:
+# copy .env.example .env
+# POSTGRES_DB=face_recognition
+# POSTGRES_USER=postgres
+# POSTGRES_PASSWORD=your-local-password
+# POSTGRES_HOST=localhost
+# POSTGRES_PORT=5432
 
 # 5. Migrasi + buat admin
 python manage.py migrate
@@ -105,7 +111,8 @@ tidak perlu diset saat develop lokal.
 |---|---|---|
 | `SECRET_KEY` | Ya (prod) | Random panjang. Default dev hanya untuk lokal |
 | `DEBUG` | Ya (prod) | `False` di production |
-| `MYSQL_HOST/PORT/USER/PASSWORD/DATABASE` | Ya | Otomatis dari plugin MySQL Railway |
+| `DATABASE_URL` | Ya (prod) | URL PostgreSQL dari Railway/Render/Fly |
+| `POSTGRES_DB/USER/PASSWORD/HOST/PORT` | Ya (local) | Kredensial PostgreSQL lokal; default host `localhost`, port `5432` |
 | `FRONTEND_URL` | Ya (prod) | URL Vercel, untuk CORS + CSRF |
 | `RAILWAY_PUBLIC_DOMAIN` | Otomatis | Di-inject Railway, untuk `ALLOWED_HOSTS` |
 | `USE_S3` | Ya (prod) | `True` → media disimpan di S3/R2, bukan filesystem ephemeral |
