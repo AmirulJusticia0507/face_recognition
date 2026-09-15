@@ -10,7 +10,8 @@ const route = useRoute()
 const sidebarStore = useSidebarStore()
 
 const isAuthPage = computed(() =>
-  ['login', 'register'].includes(route.name?.toLowerCase() || '')
+  route.meta.layout === 'auth' ||
+  ['login', 'register', 'forgotpassword', 'resetpassword'].includes(route.name?.toLowerCase() || '')
 )
 
 const mainClasses = computed(() => {

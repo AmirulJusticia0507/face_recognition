@@ -26,6 +26,8 @@ const notifRead = ref(false)
 const unreadCount = computed(() => notifRead.value ? 0 : notifications.value.length)
 
 const fetchNotifications = async () => {
+  // Jangan nembak endpoint auth kalau belum login — cuma bikin 401 noise.
+  if (!localStorage.getItem('authToken') && !localStorage.getItem('access_token')) return
   notifLoading.value = true
   try {
     const res = await dashboardApi.getRecentActivity({ limit: 5 })

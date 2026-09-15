@@ -26,4 +26,9 @@ app.use(notivue)
 const darkModeStore = useDarkModeStore()
 darkModeStore.init()
 
-app.mount('#app')
+// Tunggu router resolve dulu sebelum mount — kalau tidak, MainLayout
+// sempat render layout penuh (termasuk Header yang nembak API notifikasi)
+// padahal route-nya halaman auth.
+router.isReady().then(() => {
+  app.mount('#app')
+})
