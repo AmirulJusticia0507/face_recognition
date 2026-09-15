@@ -1,28 +1,34 @@
-import os
-import uuid
 import base64
 import json
+import os
 import tempfile
+import uuid
 
 import cv2
 import numpy as np
-from django.utils import timezone
-from django.http import JsonResponse
-from django.core.files.base import ContentFile
 from django.conf import settings
 from django.contrib import messages
-from django.shortcuts import render, redirect
+from django.core.files.base import ContentFile
+from django.http import JsonResponse
+from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework.parsers import MultiPartParser
 from django.views.generic import ListView, TemplateView
-from .models import FaceLog, FaceComparisonLog, ViolationLog, Person, ForensicLog
-from .forms import PersonForm
-from .serializers import FaceComparisonLogSerializer
+from rest_framework.parsers import MultiPartParser
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from . import face_services
-from .forensics import analyze_ela, analyze_noise, analyze_sharpening, analyze_median_filter, analyze_jpeg_ghost, analyze_copy_move, analyze_metadata
+from .forensics import (analyze_copy_move, analyze_ela, analyze_jpeg_ghost,
+                        analyze_median_filter, analyze_metadata, analyze_noise,
+                        analyze_sharpening)
+from .forms import PersonForm
+from .models import (FaceComparisonLog, FaceLog, ForensicLog, Person,
+                     ViolationLog)
+from .serializers import FaceComparisonLogSerializer
+
+
 # Dummy pose score function
 def calculate_pose_score_from_angle(pitch, yaw, roll):
     max_angle = 30

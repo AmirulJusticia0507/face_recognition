@@ -15,6 +15,6 @@ from faceapp.ws_auth import make_middleware_stack
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 application = ProtocolTypeRouter({
-    'http': get_asg_application(),
+    'http': get_asgi_application(),
     'websocket': make_middleware_stack(URLRouter(websocket_urlpatterns)),
 })
