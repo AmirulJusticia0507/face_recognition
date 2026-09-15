@@ -46,20 +46,34 @@ const filteredCameras = ref(defaultCameras)
 const fetchCameras = async () => {
   loading.value = true
   try {
-    const response = await fetch(CCTV_API + 'api/devices/', {
+    // Gateway SPL berubah: endpoint pindah dari /ai-cctv/api/devices/ (404)
+    // ke /ai-cctv/devices tanpa prefix /api. Respons: { data: [...], message }.
+    const response = await fetch(CCTV_API + 'devices', {
       headers: { 'Accept': 'application/json' }
     })
     if (response.ok) {
       const data = await response.json()
-      const apiCameras = (data.results || data).map((cam, i) => ({
-        id: cam.id || i + 100,
-        name: cam.name || cam.location || `Camera ${i + 1}`,
-        lat: parseFloat(cam.lat || cam.latitude || jogjaCenter[0]),
-        lng: parseFloat(cam.lng || cam.longitude || jogjaCenter[1]),
-        source: cam.source || 'ai-cctv',
-        stream: cam.stream_url || cam.stream || '',
-        status: cam.status || 'unknown',
-      }))
+      const list = data.data || data.results || data
+      const apiCameras = (Array.isArray(list) ? list : []).map((cam, i) => {
+        // coordinate format API: "lat, lng" (string, bisa kosong)
+        let lat = jogjaCenter[0], lng = jogjaCenter[1]
+        if (typeof cam.coordinate === 'string' && cam.coordinate.includes(',')) {
+          const [la, ln] = cam.coordinate.split(',').map(Number)
+          if (Number.isFinite(la) && Number.isFinite(ln)) { lat = la; lng = ln }
+        } else {
+          lat = parseFloat(cam.lat || cam.latitude || lat)
+          lng = parseFloat(cam.lng || cam.longitude || lng)
+        }
+        return {
+          id: cam.id || i + 100,
+          name: cam.location || cam.name || cam.type || `Camera ${i + 1}`,
+          lat,
+          lng,
+          source: cam.source || 'ai-cctv',
+          stream: cam.link || cam.stream_url || cam.stream || '',
+          status: cam.status || 'unknown',
+        }
+      })
       if (apiCameras.length > 0) {
         defaultCameras.push(...apiCameras)
       }

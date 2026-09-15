@@ -198,9 +198,9 @@ cctvApi.interceptors.request.use((config) => {
 })
 
 export const cctvService = {
-    getDevices: (params) => cctvApi.get('/api/devices/', { params }),
-    getDevice: (id) => cctvApi.get(`/api/devices/${id}/`),
-    getCounting: (params) => cctvApi.get('/api/counting/', { params }),
+    getDevices: (params) => cctvApi.get('/devices', { params }),
+    getDevice: (id) => cctvApi.get(`/devices/${id}`),
+    getCounting: (params) => cctvApi.get('/counting', { params }),
     getEmbedUrl: (id) => `${import.meta.env.VITE_API_URL || ''}/embed?device=${id}`,
 }
 
