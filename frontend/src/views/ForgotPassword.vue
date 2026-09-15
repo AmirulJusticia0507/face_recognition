@@ -1,8 +1,10 @@
 <script setup>
 import { push } from 'notivue'
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { authApi } from '../services/api'
 
+const router = useRouter()
 const email = ref('')
 const loading = ref(false)
 const submitted = ref(false)
@@ -14,6 +16,9 @@ const requestReset = async () => {
     const response = await authApi.forgotPassword(email.value.trim())
     submitted.value = true
     resetLink.value = response.data.reset_link || ''
+    if (resetLink.value) {
+      router.push(new URL(resetLink.value).pathname)
+    }
   } catch (error) {
     push.error({ title: 'Gagal', message: error.response?.data?.error || 'Permintaan reset password gagal.' })
   } finally {

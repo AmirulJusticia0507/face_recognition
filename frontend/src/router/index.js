@@ -177,7 +177,7 @@ router.beforeEach((to, from, next) => {
 
     if (to.meta.requiresAuth && !isAuthenticated) {
         next({ name: 'Login', query: { redirect: to.fullPath } })
-    } else if ((to.name === 'Login' || to.name === 'Register' || to.name === 'ForgotPassword' || to.name === 'ResetPassword') && isAuthenticated) {
+    } else if ((to.name === 'Login' || to.name === 'Register') && isAuthenticated) {
         next({ name: 'Dashboard' })
     } else {
         next()
