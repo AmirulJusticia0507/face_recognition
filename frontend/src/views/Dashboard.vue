@@ -6,6 +6,7 @@ import {
   Chart,
   CategoryScale,
   LinearScale,
+  BarController,
   BarElement,
   PointElement,
   LineElement,
@@ -15,7 +16,7 @@ import {
   Filler,
 } from 'chart.js'
 
-Chart.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler)
+Chart.register(CategoryScale, LinearScale, BarController, BarElement, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 const router = useRouter()
 

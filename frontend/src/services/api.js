@@ -18,16 +18,20 @@ const api = axios.create({
 })
 
 // Request interceptor - support both local auth (Token) and SSO tokens (Bearer)
+// NOTE: backend Django (TokenAuthentication) hanya menerima skema "Token",
+// jadi authToken lokal harus didahulukan. access_token SSO (Bearer) hanya
+// fallback — kalau dibalik, token SSO basi menutupi token lokal yang valid
+// dan semua request 401.
 api.interceptors.request.use(
     (config) => {
         const ssoToken = localStorage.getItem('access_token')
         const localToken = localStorage.getItem('authToken')
-        if (ssoToken) {
-            // SSO / Keycloak JWT — uses Bearer scheme
-            config.headers.Authorization = `Bearer ${ssoToken}`
-        } else if (localToken) {
+        if (localToken) {
             // Django local Token auth — uses Token scheme
             config.headers.Authorization = `Token ${localToken}`
+        } else if (ssoToken) {
+            // SSO / Keycloak JWT — uses Bearer scheme
+            config.headers.Authorization = `Bearer ${ssoToken}`
         }
         return config
     },
