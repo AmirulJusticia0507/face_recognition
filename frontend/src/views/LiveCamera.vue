@@ -1,9 +1,9 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { etleCameraApi, liveCameraApi } from '../services/api'
-import Swal from 'sweetalert2'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import Swal from 'sweetalert2'
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { liveCameraApi } from '../services/api'
 
 const mapRef = ref(null)
 let map = null
@@ -22,31 +22,42 @@ const showSnapshots = ref(false)
 let stream = null
 
 const jogjaCenter = [-7.7956, 110.3695]
+const LOCATION_PINS_API = 'https://cctv.jogjaprov.go.id/api/v1/location-pins'
 
-const defaultCameras = [
-  { id: 1, name: 'Simpang APMD (PTZ)', lat: -7.791971853164589, lng: 110.39164423942567, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_apmd.stream/playlist.m3u8' },
-  { id: 2, name: 'Simpang Gondomanan (PTZ)', lat: -7.801683039634787, lng: 110.36917244417295, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_gondomanan.stream/playlist.m3u8' },
-  { id: 3, name: 'Simpang Jokteng Kulon (PTZ)', lat: -7.81294, lng: 110.35594, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_joktengkulon.stream/playlist.m3u8' },
-  { id: 4, name: 'Simpang Jokteng Wetan', lat: -7.814380894891082, lng: 110.36806762218477, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_joktengwetan.stream/playlist.m3u8' },
-  { id: 5, name: 'Simpang KM Nol (PTZ)', lat: -7.8010758219105565, lng: 110.36475215767108, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8' },
-  { id: 6, name: 'Simpang Permata (PTZ)', lat: -7.8015437731163875, lng: 110.37307262420656, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_permata.stream/playlist.m3u8' },
-  { id: 7, name: 'Simpang PKU Muh. (PTZ)', lat: -7.801283, lng: 110.362061, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_pkumuh.stream/playlist.m3u8' },
-  { id: 8, name: 'Simpang Sentul (PTZ)', lat: -7.801442745827733, lng: 110.3779435343926, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/atcs/ATCS_sentul.stream/playlist.m3u8' },
-  { id: 9, name: 'Sungai Gajah Wong 2', lat: -7.790914106163658, lng: 110.39598405361177, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/bpbd/BPBD_gajahwong2.stream/playlist.m3u8' },
-  { id: 10, name: 'Sungai Winongo', lat: -7.789489704931309, lng: 110.35666287355627, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/bpbd/BPBD_kaliwinongo.stream/playlist.m3u8' },
-  { id: 11, name: 'Sungai Ngentak', lat: -7.722645179146617, lng: 110.38926337561489, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/bpbd/BPBD_ngentak.stream/playlist.m3u8' },
-  { id: 12, name: 'Malioboro_Selatan_Teteg', lat: -7.789968068779914, lng: 110.36602878685423, source: 'jogjakota', stream: 'https://cctvjss.jogjakota.go.id/malioboro/Malioboro_1_Selatan_Teteg.stream/playlist.m3u8' },
-]
-
-const filteredCameras = ref(defaultCameras)
+const filteredCameras = ref([])
 
 const fetchCameras = async () => {
   loading.value = true
   try {
-    const res = await etleCameraApi.getJogjaCameras()
-    cameras.value = res.data || []
-  } catch {
-    cameras.value = defaultCameras
+    const response = await fetch(LOCATION_PINS_API, {
+      headers: { Accept: 'application/vnd.api+json' },
+    })
+    if (!response.ok) throw new Error(`Camera API returned ${response.status}`)
+
+    const payload = await response.json()
+    cameras.value = (Array.isArray(payload.data) ? payload.data : [])
+      .map((pin, index) => {
+        const attributes = pin.attributes || {}
+        const lat = Number(attributes.lat)
+        const lng = Number(attributes.lng)
+
+        return {
+          id: pin.id || index + 1,
+          name: attributes.name || attributes.alias_name || `Camera ${index + 1}`,
+          lat,
+          lng,
+          source: attributes.group_name || 'Jogja Provinsi',
+          stream: attributes.stream_url || '',
+          status: attributes.connected ? 'online' : 'offline',
+        }
+      })
+      .filter(camera => Number.isFinite(camera.lat) && Number.isFinite(camera.lng))
+      .filter(camera => camera.stream)
+
+    if (cameras.value.length === 0) throw new Error('No valid camera pins found')
+  } catch (error) {
+    console.warn('Jogja Province CCTV API unavailable', error)
+    cameras.value = []
   } finally {
     filteredCameras.value = [...cameras.value]
     loading.value = false
