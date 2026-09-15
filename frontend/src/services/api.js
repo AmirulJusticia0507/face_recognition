@@ -1,4 +1,5 @@
 import axios from 'axios'
+import router from '../router'
 
 // Production: VITE_BACKEND_URL=https://your-app.railway.app
 // Development: proxy via vite.config.js ke localhost:8000 (VITE_BACKEND_URL tidak perlu diset)
@@ -34,6 +35,8 @@ api.interceptors.request.use(
 )
 
 // Response interceptor
+// NOTE: pakai router.push (bukan window.location.href) dan jangan redirect
+// kalau sudah di halaman auth — full reload + redirect buta = loop 401.
 api.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -45,7 +48,11 @@ api.interceptors.response.use(
             localStorage.removeItem('expires_at')
             localStorage.removeItem('refresh_expires_at')
             localStorage.removeItem('token_response')
-            window.location.href = '/login'
+            const current = router.currentRoute.value
+            const onAuthPage = ['Login', 'Register', 'ForgotPassword', 'ResetPassword'].includes(current.name)
+            if (!onAuthPage) {
+                router.push({ name: 'Login', query: { redirect: current.fullPath } }).catch(() => {})
+            }
         }
         return Promise.reject(error)
     }

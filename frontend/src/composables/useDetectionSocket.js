@@ -1,4 +1,4 @@
-import { ref, onUnmounted } from 'vue'
+import { ref } from 'vue'
 
 const WS_BASE = import.meta.env.VITE_WS_URL
   || import.meta.env.VITE_BACKEND_URL
@@ -71,7 +71,3 @@ export const detectionSocket = {
     this.notifications.value = []
   },
 }
-
-onUnmounted(() => {
-  detectionSocket.disconnect()
-})
