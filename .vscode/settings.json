@@ -3,5 +3,6 @@
   "python.analysis.extraPaths": [
     "${workspaceFolder}/venv311/Lib/site-packages",
     "${workspaceFolder}"
-  ]
+  ],
+  "python.analysis.diagnosticsSource": "Pylance + Pyrefly"
 }
